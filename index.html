@@ -445,6 +445,7 @@
 
             // --- GEMINI API LOGIC ---
             const callGeminiAPI = async (query, isTool = false) => {
+                // Changed model to gemini-2.0-flash
                 const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
                 
                 // Context Construction
