@@ -134,7 +134,7 @@
                         </h3>
                         <p className="text-sm text-gray-600 mb-4">
                             Google Gemini APIキーを入力すると、AIが文脈を理解して回答します。
-                            <br/><span className="text-xs text-gray-400">※キーはブラウザに保存されず、このセッションのみ有効です。</span>
+                            <br/><span className="text-xs text-gray-400">※キーはブラウザの保存領域（LocalStorage）に保存され、このセッション以外でも有効になります。</span>
                         </p>
                         <input
                             type="password"
@@ -149,7 +149,7 @@
                                 onClick={() => onSave(key)}
                                 className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
                             >
-                                設定して閉じる
+                                設定して保存
                             </button>
                         </div>
                         <div className="mt-4 pt-4 border-t text-xs text-gray-500">
@@ -626,13 +626,31 @@ ${isTool ? "6. ツール実行モードです。ユーザーの指示に従い�
 
         const App = () => {
             const [isSettingsOpen, setIsSettingsOpen] = React.useState(false);
-            // Default API Key set as requested
-            const [apiKey, setApiKey] = React.useState('');
+            
+            // Initialize from localStorage
+            const [apiKey, setApiKey] = React.useState(() => {
+                try {
+                    return localStorage.getItem('tv_meta_api_key') || '';
+                } catch (e) {
+                    return '';
+                }
+            });
+            
             const [toolTrigger, setToolTrigger] = React.useState(null); // 'predict', 'plan', 'report'
 
             const handleRunTool = (tool) => {
                 setToolTrigger(null); // Reset first to allow re-triggering same tool
                 setTimeout(() => setToolTrigger(tool), 10);
+            };
+
+            const handleSaveKey = (key) => {
+                setApiKey(key);
+                if (key) {
+                    localStorage.setItem('tv_meta_api_key', key);
+                } else {
+                    localStorage.removeItem('tv_meta_api_key');
+                }
+                setIsSettingsOpen(false);
             };
 
             return (
@@ -652,10 +670,7 @@ ${isTool ? "6. ツール実行モードです。ユーザーの指示に従い�
                     <ApiKeyModal 
                         isOpen={isSettingsOpen} 
                         onClose={() => setIsSettingsOpen(false)}
-                        onSave={(key) => {
-                            setApiKey(key);
-                            setIsSettingsOpen(false);
-                        }}
+                        onSave={handleSaveKey}
                         currentKey={apiKey}
                     />
                 </div>
