@@ -626,7 +626,7 @@ ${isTool ? "6. ツール実行モードです。ユーザーの指示に従い�
         const App = () => {
             const [isSettingsOpen, setIsSettingsOpen] = React.useState(false);
             // Default API Key set as requested
-            const [apiKey, setApiKey] = React.useState('AIzaSyBuVA6OW_5DHL6AqciV8IVdPFmlHeRQKvI');
+            const [apiKey, setApiKey] = React.useState('');
             const [toolTrigger, setToolTrigger] = React.useState(null); // 'predict', 'plan', 'report'
 
             const handleRunTool = (tool) => {
