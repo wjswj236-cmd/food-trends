@@ -1,0 +1,627 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TV Metadata AI Analyst (Gemini Powered)</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- React & ReactDOM -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <!-- Babel -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <!-- Phosphor Icons -->
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+    <!-- Markdown Parser -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    
+    <style>
+        body {
+            font-family: 'Noto Sans JP', sans-serif;
+            background-color: #f3f4f6;
+        }
+        .scrollbar-hide::-webkit-scrollbar {
+            display: none;
+        }
+        .scrollbar-hide {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+        .typing-dot {
+            animation: typing 1.4s infinite ease-in-out both;
+        }
+        .typing-dot:nth-child(1) { animation-delay: -0.32s; }
+        .typing-dot:nth-child(2) { animation-delay: -0.16s; }
+        
+        @keyframes typing {
+            0%, 80%, 100% { transform: scale(0); }
+            40% { transform: scale(1); }
+        }
+        
+        /* Message Markdown Styles */
+        .prose h3 {
+            font-size: 1.1rem;
+            font-weight: 700;
+            margin-top: 1rem;
+            margin-bottom: 0.5rem;
+            color: #1f2937;
+        }
+        .prose p {
+            margin-bottom: 0.75rem;
+            line-height: 1.6;
+            color: #374151;
+        }
+        .prose ul {
+            list-style-type: disc;
+            padding-left: 1.5rem;
+            margin-bottom: 0.75rem;
+        }
+        .prose li {
+            margin-bottom: 0.25rem;
+        }
+        .prose strong {
+            color: #111827;
+            font-weight: 700;
+        }
+        .prose blockquote {
+            border-left: 4px solid #e5e7eb;
+            padding-left: 1rem;
+            font-style: italic;
+            color: #4b5563;
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        // --- DATASET (30 items) ---
+        const MOCK_DATA = [
+            { date: "2026/10/05", station: "CX", program: "ニュースモーニング", headline: "＜トレンド＞進化する伝統菓子・「ネオおはぎ」が熱い", summary: "今、若者や健康志向層の間で「おはぎ」が再注目されている。従来のイメージを覆す、ケーキのようにデコレーションされた商品や、古代米・雑穀を使用した腸活メニューとしての需要が急増。都内の専門店「ＯＨＡＧＩ・ＬＡＢＯ」では、栄養価の高さを売りにした「スーパーフードおはぎ」が連日完売しており、手土産としての人気も高まっている。【出演】佐藤美咲（フードコーディネーター）", sceneId: "921558401", theme: "進化系おはぎ", genre: "スイーツ", tags: "#和スイーツ #ネオ和菓子 #映えスイーツ #手土産", explanation: "栄養価の高さからスーパーフードとして注目され、腸活やダイエットに関心のある層からも支持されています。見た目が華やかなものや健康志向のものなどバリエーションが豊富になり、専門店も増加しています。" },
+            { date: "2026/09/28", station: "NTV", program: "経済フロントライン", headline: "コーヒー豆高騰・「一杯２０００円」に商機あり", summary: "コーヒー相場の歴史的な高止まりが続く中、あえて超高級路線で勝負する企業が増えている。国際見本市「カフェ・エキスポ２０２６」では、希少豆「パナマ・ゲイシャ」や、健康機能性を付加した一杯２０００円のコーヒーに長蛇の列ができた。気候変動による供給減を背景に、単なる嗜好品から、健康やサステナビリティを売りにした「高付加価値体験」へのシフトが加速している。", sceneId: "921473882", theme: "高付加価値コーヒー", genre: "飲料", tags: "#スペシャリティ #サステナブル #体験消費 #健康志向", explanation: "新興国のカフェ人気や産地の気候問題を背景にコーヒー豆が歴史的な高値となる中、健康を意識した商品や、コーヒー豆から作ったチョコレートなど、「高付加価値」を付けた商品が注目を集めています。" },
+            { date: "2026/09/25", station: "EX", program: "スーパーJチャンネル", headline: "「あえて飲まない」がかっこいい？ノンアル市場激化", summary: "大手飲料メーカー各社が相次いでノンアルコールの新商品を投入している。「大洋ビール」は、ビール特有の苦みを完全再現した「ゼロ・クラシック」を発表。健康志向の高まりを受け、市場規模は２００９年比で約７倍に急拡大。「ソバーキュリアス（あえて飲まない生き方）」を実践する層を取り込むため、夜のリラックスタイム専用商品など、各社のシェア争いが熾烈を極めている。", sceneId: "921430955", theme: "ノンアルコール飲料", genre: "飲料", tags: "#ソバーキュリアス #ヘルシー #モクテル #健康志向", explanation: "健康志向の高まりなどから「お酒は飲めるけどあえて飲まない」人が増えており、ノンアルコール飲料の市場が2009年比で約7倍に拡大。各社が新商品を投入し、シェア争いが激化しています。" },
+            { date: "2026/09/20", station: "NTV", program: "週末グルメ旅", headline: "行列必至！自分好みに作る「薬膳スープ春雨」", summary: "Ｚ世代を中心に爆発的な人気の「麻辣湯（マーラータン）」。人気の秘密は５０種類以上の具材から選べるカスタマイズ性と、発汗作用による美容効果。大手チェーン「炎の麻辣湯」では、特有のモチモチ食感が楽しい春雨「ブンモジャ」が大ブレイク中。ゲストのアイドルも激辛３辛に挑戦し、そのヘルシーな中毒性を絶賛した。【店舗】東京・渋谷「炎の麻辣湯」", sceneId: "921369741", theme: "麻辣湯（まーらーたん）", genre: "中華", tags: "#シビ辛 #激辛 #B級グルメ #カスタマイズ #美容健康", explanation: "自由にカスタマイズできる楽しさと、美容や健康にも効果が期待できるヘルシーさから、ランチタイムには連日大行列ができる人気となっています。特に中国発祥の春雨「ブンモジャ」が人気のトッピングです。" },
+            { date: "2026/10/02", station: "CX", program: "トレンドハンター", headline: "クレープに異変・もちもちは古い？「パリパリ派」急増", summary: "クレープ界に第３次ブームが到来。これまでの「もちもち生地」ではなく、焼きたての「パリパリ食感」を楽しむスタイルが新しい。表参道の新店「クリスピー・シュガー」では、ASMR動画映えするとしてＳＮＳで拡散され、最大２時間待ちの状態。フルーツを減らし、生地の食感そのものを楽しむバターシュガーなどが支持されている。", sceneId: "921758236", theme: "パリパリ食感のクレープ", genre: "スイーツ", tags: "#進化形スイーツ #新食感 #ASMR #食べ歩きグルメ", explanation: "第三次クレープブームが到来しており、これまでの「もちもち」とした食感から、生地が「パリパリ」のクレープが新たなブームとなっています。" },
+            { date: "2026/10/06", station: "NTV", program: "ニュース・アイ", headline: "具材がはみ出る「ご馳走おにぎり」専門店が急増", summary: "おにぎりブームが進化し、具材が上に乗った「ご馳走系」が人気。東京・大塚の「おにぎり太助」では、角煮やエビ天が丸ごと乗ったメニューに行列ができる。注文を受けてから握るふんわり食感と、写真映えする見た目が若者や外国人観光客に受けている。", sceneId: "923456789", theme: "ご馳走おにぎり", genre: "米飯", tags: "#専門店 #映えグルメ #テイクアウト #行列", explanation: "具材を中に入れるだけでなく、上に豪快に乗せた見た目のインパクトが特徴。注文後に握るライブ感も人気を博している。" },
+            { date: "2026/09/29", station: "TBS", program: "あさチャン・サタデー", headline: "「生ドーナツ」の新食感にハマる人続出", summary: "揚げているのに口の中でとろける「生ドーナツ」が話題。カボチャを練り込んだ生地によるしっとり感と、あふれんばかりのクリームが特徴。中目黒の「D-MELT」は連日完売。従来のドーナツとは一線を画す「飲めるドーナツ」としてＳＮＳで拡散されている。", sceneId: "923456790", theme: "生ドーナツ", genre: "スイーツ", tags: "#新食感 #とろける #クリームたっぷり #行列", explanation: "口どけの良さを極限まで追求したドーナツ。ブリオッシュ生地やカボチャ練り込み生地などが主流で、クリームが大量に入っているのが特徴。" },
+            { date: "2026/10/08", station: "EX", program: "モーニングショー", headline: "濃厚な旨味「貝出汁ラーメン」がブーム到来", summary: "豚骨、鶏ガラに次ぐ第三のスープとして「貝出汁」が台頭。シジミ、アサリ、ハマグリを大量に使用した濃厚なスープが特徴。肝臓に優しいイメージや、あっさりしつつも深いコクが女性客にも支持されている。銀座「麺屋・汐彩」を紹介。", sceneId: "923456791", theme: "貝出汁ラーメン", genre: "麺類", tags: "#あっさり #旨味 #ランチ #女性人気", explanation: "アサリ、シジミ、ハマグリなどの貝類から抽出した出汁をメインにしたラーメン。滋味深い味わいが特徴。" },
+            { date: "2026/09/25", station: "CX", program: "めざましテレビ", headline: "メキシコ風「ビリアタコス」が上陸・スープにつける新スタイル", summary: "お肉たっぷりのタコスを、煮込みスープに浸して食べる「ビリアタコス」が日本初上陸。もともとメキシコの郷土料理だが、アメリカ西海岸経由でトレンドに。カリッと焼いたトルティーヤとジューシーな肉の旨味が話題。原宿「TACO-DIP」を取材。", sceneId: "923456792", theme: "ビリアタコス", genre: "多国籍", tags: "#ディップ #メキシカン #肉料理 #屋台メシ", explanation: "煮込んだ肉を挟んだタコスを、その煮汁（コンソメ）につけて食べるスタイル。カリッとした食感とジューシーさが魅力。" },
+            { date: "2026/10/01", station: "TX", program: "WBS", headline: "「クラフトジン」地方蒸留所が続々・ボタニカルで差別化", summary: "日本各地で「クラフトジン」の生産が急増している。地元の特産品（柑橘、山椒、茶葉など）を香り付けに使用し、地域創生の切り札としても注目。自宅での「家飲み」を格上げするプレミアムなお酒としてギフト需要も伸びている。", sceneId: "923456793", theme: "国産クラフトジン", genre: "アルコール", tags: "#家飲み #地域創生 #ボタニカル #ギフト", explanation: "日本各地の特産素材（ボタニカル）を使用したジン。地域ごとの個性が強く、パッケージもおしゃれで贈答用にも人気。" },
+            { date: "2026/09/30", station: "NTV", program: "ZIP!", headline: "罪悪感なし「豆ヌードル」でヘルシー麺生活", summary: "小麦粉を使わず、エンドウ豆や大豆を主原料とした「豆ヌードル」がコンビニやスーパーで拡大中。高タンパク・低糖質ながら、モチモチした食感が再現されており、ダイエット中のラーメン好きに支持されている。「ZENB」などのD2Cブランドが火付け役。", sceneId: "923456794", theme: "豆ヌードル", genre: "麺類", tags: "#グルテンフリー #高タンパク #低糖質 #ダイエット", explanation: "黄えんどう豆などを100%使用した麺。糖質オフでありながら麺料理を楽しめるため、健康志向層に定着している。" },
+            { date: "2026/10/03", station: "TBS", program: "王様のブランチ", headline: "札幌発「シメパフェ」が東京で定着・夜のスイーツ", summary: "お酒を飲んだ後の締めにパフェを食べる北海道・札幌の文化「シメパフェ」が東京でも完全に定着。深夜営業の専門店が増加し、甘さ控えめでフルーツやハーブを使った大人の味わいが人気。新宿「Night Parlor 梟」を紹介。", sceneId: "923456795", theme: "夜パフェ（シメパフェ）", genre: "スイーツ", tags: "#深夜グルメ #大人スイーツ #フォトジェニック #デート", explanation: "飲酒後の締めに食べるパフェ。サッパリした味わいや、リキュールを使った大人向けの構成が特徴。" },
+            { date: "2026/09/27", station: "CX", program: "ノンストップ！", headline: "自分好みにカスタム「グリークヨーグルトボウル」", summary: "水分を抜いた濃厚な「グリークヨーグルト（ギリシャヨーグルト）」の専門店が増加。フルーツ、コムハニー（巣蜜）、グラノーラなどを自由にトッピングするスタイルが韓国経由で逆輸入ヒット。もったりとした食感で腹持ちが良く、朝食や軽食に人気。", sceneId: "923456796", theme: "グリークヨーグルト", genre: "スイーツ", tags: "#韓国トレンド #高タンパク #朝食 #ヘルシー", explanation: "水切り製法による濃厚でクリーミーな食感が特徴。巣蜜やフルーツをトッピングして食事代わりに食べるスタイルが流行。" },
+            { date: "2026/10/09", station: "EX", program: "グッド！モーニング", headline: "喫茶店ブームで復権「固めプリン」", summary: "昭和レトロブームに乗り、昔ながらの「固めプリン」が再評価されている。とろとろ系からトレンドが回帰。銀の器に盛られたビジュアルと、卵の味が濃いしっかりした食感が「エモい」と若者に人気。純喫茶「シルビア」の行列を紹介。", sceneId: "923456797", theme: "固めプリン", genre: "スイーツ", tags: "#レトロ喫茶 #昭和レトロ #インスタ映え #懐かしい", explanation: "卵の凝固力を活かした、しっかりとした食感のプリン。レトロな喫茶店ブームとともに再流行している。" },
+            { date: "2026/09/24", station: "NTV", program: "ヒルナンデス！", headline: "台湾屋台メシ「胡椒餅（フージャオビン）」が行列", summary: "台湾の夜市で定番の「胡椒餅」専門店が都内に急増。外はカリカリ、中は肉汁たっぷりの豚肉とネギ、そして強烈な胡椒の香りが特徴。窯で焼き上げる様子を店頭で見せるライブ感も集客につながっている。吉祥寺「台湾老劉」を取材。", sceneId: "923456798", theme: "胡椒餅", genre: "多国籍", tags: "#台湾グルメ #食べ歩き #スパイシー #窯焼き", explanation: "胡椒を効かせた肉餡を生地で包み、窯の側面に貼り付けて焼く台湾の焼き肉まん。スパイシーさとクリスピーな食感が魅力。" },
+            { date: "2026/10/05", station: "TBS", program: "Nスタ", headline: "進化する「発酵レモンサワー」・麹の力でまろやか", summary: "居酒屋の定番レモンサワーに「発酵」の要素を加えた「発酵レモンサワー」が登場。レモンを塩麹に漬け込んだり、発酵シロップを使用することで、酸味がまろやかになり旨味が増している。健康志向の飲兵衛に受けている。", sceneId: "923456799", theme: "発酵レモンサワー", genre: "アルコール", tags: "#腸活 #ネオ居酒屋 #自家製 #飲みやすい", explanation: "レモンを麹や酵母で発酵させたシロップなどを使用したサワー。角が取れたまろやかな酸味と深みが特徴。" },
+            { date: "2026/10/02", station: "TX", program: "ガイアの夜明け", headline: "絶滅危惧のウナギを守れ・「プラントベースうなぎ」の挑戦", summary: "ニホンウナギの価格高騰が続く中、大豆や豆腐で作った「代替ウナギ」のクオリティが上がっている。見た目の皮の質感から、炭火焼きの香ばしさ、身のふっくら感まで再現。老舗うなぎ店でもメニュー導入が始まり、サステナブルな選択肢として注目される。", sceneId: "923456800", theme: "代替うなぎ", genre: "加工食品", tags: "#SDGs #植物性 #ヴィーガン #再現度", explanation: "大豆タンパクなどを主原料に、ウナギの蒲焼きの味と食感を再現した食品。環境保護や価格高騰への対策として開発が進む。" },
+            { date: "2026/09/28", station: "CX", program: "めざまし8", headline: "緑の宝石「ピスタチオスイーツ」が定着・専門店も", summary: "数年前からのブームを経て、ピスタチオ味が定番フレーバーとして定着。さらに進化し、ピスタチオバターサンドやジェラートなどの専門店が登場。濃厚なコクと鮮やかな緑色が、高級感ある手土産として選ばれている。", sceneId: "923456801", theme: "ピスタチオスイーツ", genre: "スイーツ", tags: "#ナッツ #高級感 #濃厚 #手土産", explanation: "「ナッツの女王」と呼ばれるピスタチオを使ったスイーツ。濃厚な風味と鮮やかな緑色が特徴で、高級菓子として定着。" },
+            { date: "2026/10/07", station: "NTV", program: "every.", headline: "高級食材トリュフを手軽に「塩トリュフパン」", summary: "高級食材であるトリュフを練り込んだ「塩トリュフパン」がパン好きの間で大ヒット。焼き上がりの香りが強烈で、一つで贅沢な気分になれる。都内ベーカリー「Truffle & Bread」では焼き上がり時間に整理券が配られるほどの人気。", sceneId: "923456802", theme: "塩トリュフパン", genre: "パン", tags: "#高級パン #香り #プチ贅沢 #行列", explanation: "トリュフオイルやトリュフ塩、刻みトリュフを使用した塩パン。手頃な価格で高級食材の香りを楽しめる点が人気。" },
+            { date: "2026/09/26", station: "TBS", program: "サタデープラス", headline: "出汁とスパイスの融合「出汁スパイスカレー」", summary: "大阪発祥のスパイスカレーが進化し、和風出汁をベースにした「出汁カレー」が全国区に。鰹や昆布の旨味にスパイスを重ねることで、毎日食べても胃もたれしない優しい味が特徴。蕎麦屋からの転向組も参入している。", sceneId: "923456803", theme: "出汁スパイスカレー", genre: "カレー", tags: "#大阪発 #和風 #旨味 #ヘルシー", explanation: "日本の「出汁」文化とインドの「スパイス」を融合させたカレー。油分少なめで、旨味重視の味わいが特徴。" },
+            { date: "2026/10/04", station: "EX", program: "サンデーステーション", headline: "チーズの大洪水「ブッラータ」が主役の料理", summary: "モッツァレラの中に生クリームが入った「ブッラータチーズ」を、ピザやパスタの上に丸ごと一つ乗せる豪快なメニューがレストランで急増。ナイフを入れると中身がとろけ出す動画がSNSで人気。", sceneId: "923456804", theme: "ブッラータチーズ", genre: "乳製品", tags: "#チーズ料理 #とろ〜り #インパクト #イタリアン", explanation: "袋状のモッツァレラチーズの中に生クリームと刻んだチーズが入ったもの。切ると中身が溢れ出す演出が人気。" },
+            { date: "2026/09/30", station: "CX", program: "Live News イット！", headline: "萌え断の元祖「フルーツ大福」が進化・糸で切る体験", summary: "旬のフルーツを丸ごと包んだ「フルーツ大福」の人気が継続。専用の「糸」を使って自分で切るスタイルが体験型スイーツとして定着。イチジクやメロンなど、季節ごとの限定商品が贈答用として重宝されている。", sceneId: "923456805", theme: "フルーツ大福", genre: "スイーツ", tags: "#萌え断 #和スイーツ #手土産 #体験型", explanation: "果物を丸ごと白餡と餅で包んだ大福。糸を使って断面をきれいに切る工程を含めて楽しむスタイル。" },
+            { date: "2026/10/06", station: "NTV", program: "スッキリ！", headline: "サケの旨味を凝縮「サーモンラーメン」", summary: "フレンチの技法を取り入れた「サーモンラーメン」が登場。鮭の頭や骨から取った白湯スープに、トッピングもサーモン尽くし。クリーミーでパスタのような味わいが、ラーメン店の新規客層を開拓している。神楽坂「鮭noodle」を取材。", sceneId: "923456806", theme: "サーモンラーメン", genre: "麺類", tags: "#進化系ラーメン #フレンチ #クリーミー #魚介系", explanation: "鮭をメイン食材に使用したラーメン。ポタージュのような濃厚なスープや、洋風の盛り付けが特徴。" },
+            { date: "2026/09/23", station: "TBS", program: "ひるおび", headline: "専門店レベル「進化系バナナジュース」", summary: "タピオカブームの後に定着したバナナジュースが高級化。一杯1000円超えの完熟バナナ使用店や、アーモンドミルク、黒ゴマなどと合わせた健康ドリンクとして進化。賞味期限20分という鮮度重視の店も。", sceneId: "923456807", theme: "高級バナナジュース", genre: "飲料", tags: "#砂糖不使用 #美肌 #朝食 #専門店", explanation: "完熟バナナと牛乳のみで作るなど、素材にこだわったジュース。砂糖不使用でも甘い点が健康志向層にヒット。" },
+            { date: "2026/10/08", station: "TX", program: "カンブリア宮殿", headline: "揚げたてサクサク「本場チュロス」専門店", summary: "テーマパークの定番だったチュロスが、揚げたての本格スペイン菓子として街中に進出。ホットチョコレートに浸して食べるスペインスタイルや、文字の形に成形した「推し活チュロス」が人気。", sceneId: "923456808", theme: "ディップチュロス", genre: "スイーツ", tags: "#スペイン菓子 #食べ歩き #サクサク #推し活", explanation: "真っ直ぐな形状やループ状のものなど多様化。チョコレートソースなどにディップして食べる本場スタイルが流行。" },
+            { date: "2026/09/29", station: "EX", program: "家事ヤロウ!!!", headline: "自宅がレストランに「プレミアム冷凍食品」", summary: "急速冷凍技術の進化により、有名シェフ監修のコース料理がそのまま自宅で楽しめる「プレミアム冷凍食品」が拡大。一食1500円〜2000円と高価格帯ながら、共働き世帯の週末の贅沢として需要が伸びている。専門通販サイト「FROZEN-CHEF」が好調。", sceneId: "923456809", theme: "プレミアム冷凍食品", genre: "加工食品", tags: "#時短 #お取り寄せ #名店の味 #技術革新", explanation: "特殊な冷凍技術で、店の味をそのまま再現した高級冷凍食品。湯煎や解凍だけでレストランの味が楽しめる。" },
+            { date: "2026/10/02", station: "NTV", program: "news zero", headline: "チョップドサラダ専門店が進化・スプーンで食べるサラダ", summary: "具材を細かく刻んだ「チョップドサラダ」が、主食として定着。米やパスタの代わりにキヌアやカリフラワーライスを使用し、スプーン一つで食べられる手軽さがビジネスパーソンに人気。カスタムオーダーで自分だけの栄養バランスを作れる点が魅力。", sceneId: "923456810", theme: "パワーサラダ（チョップド）", genre: "野菜", tags: "#主食サラダ #カスタム #デリバリー #ヘルシー", explanation: "野菜、肉、穀物などを細かく刻んで混ぜ合わせたサラダ。一皿で栄養が完結する完全食的な位置付け。" },
+            { date: "2026/09/27", station: "CX", program: "Mr.サンデー", headline: "飲む点滴「クラフトコーラ」・スパイスで健康志向", summary: "大手メーカーのコーラとは異なる、スパイスやハーブを調合した手作りの「クラフトコーラ」がブーム。漢方由来の素材を使った「薬膳コーラ」など、罪悪感のないジュースとしてカフェや銭湯で提供されている。", sceneId: "923456811", theme: "クラフトコーラ", genre: "飲料", tags: "#無添加 #スパイス #ご当地 #チルタイム", explanation: "スパイスや柑橘類、ハーブなどを煮出して作るシロップを炭酸で割った飲み物。作り手の個性が反映されやすい。" },
+            { date: "2026/10/05", station: "TBS", program: "NEWS23", headline: "クロワッサン×マフィン「クラフィン」が再燃", summary: "クロワッサン生地をマフィン型に入れて焼いた「クラフィン」が、パン屋の新たなトレンドに。サクサクの層と、中に注入されたクリームの相性が抜群。サンフランシスコ発祥だが、日本独自のアレンジで抹茶やあんこ入りも登場。", sceneId: "923456812", theme: "クラフィン", genre: "パン", tags: "#ハイブリッドスイーツ #サクサク #クリーム #おやつ", explanation: "クロワッサンとマフィンを掛け合わせたハイブリッドパン。縦に伸びた形状と、中のクリームが特徴。" },
+            { date: "2026/10/01", station: "NTV", program: "ZIP!", headline: "韓国発「クロッフル」が朝食の定番に", summary: "クロワッサン生地をワッフルメーカーで焼いた「クロッフル」。サクサクもちもちの食感が特徴で、カフェだけでなく、冷凍生地を使って自宅で焼く人が急増。メープルシロップやチーズをかけて朝食にするスタイルがSNSで話題。", sceneId: "923456813", theme: "クロッフル", genre: "スイーツ", tags: "#韓国カフェ #簡単レシピ #朝食 #サクサク", explanation: "クロワッサン生地をワッフル型でプレスして焼いたスイーツ。手軽に作れて見栄えが良いことから人気が継続。" }
+        ];
+
+        // --- COMPONENTS ---
+
+        // API Key Input Modal
+        const ApiKeyModal = ({ isOpen, onClose, onSave, currentKey }) => {
+            const [key, setKey] = React.useState(currentKey || '');
+
+            if (!isOpen) return null;
+
+            return (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-lg p-6 w-full max-w-md shadow-xl">
+                        <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
+                            <i className="ph ph-key text-blue-600"></i>
+                            Gemini API設定
+                        </h3>
+                        <p className="text-sm text-gray-600 mb-4">
+                            Google Gemini APIキーを入力すると、AIが文脈を理解して回答します。
+                            <br/><span className="text-xs text-gray-400">※キーはブラウザに保存されず、このセッションのみ有効です。</span>
+                        </p>
+                        <input
+                            type="password"
+                            value={key}
+                            onChange={(e) => setKey(e.target.value)}
+                            placeholder="API Key (AIzaSy...)"
+                            className="w-full border rounded p-2 mb-4 focus:ring-2 focus:ring-blue-500 outline-none"
+                        />
+                        <div className="flex justify-end gap-2">
+                            <button onClick={onClose} className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded">キャンセル</button>
+                            <button 
+                                onClick={() => onSave(key)}
+                                className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+                            >
+                                設定して閉じる
+                            </button>
+                        </div>
+                        <div className="mt-4 pt-4 border-t text-xs text-gray-500">
+                             <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noreferrer" className="text-blue-500 hover:underline flex items-center gap-1">
+                                <i className="ph ph-arrow-square-out"></i> APIキーを取得する (Google AI Studio)
+                             </a>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        const Sidebar = ({ onNewChat, onOpenSettings, hasKey, onRunTool }) => (
+            <div className="w-64 bg-gray-900 text-gray-100 flex flex-col h-full hidden md:flex border-r border-gray-700 shadow-xl z-20">
+                <div className="p-4">
+                    <div className="flex items-center gap-2 mb-6 text-blue-400">
+                        <i className="ph ph-television text-3xl"></i>
+                        <span className="text-xl font-bold tracking-tight">TV Meta Analyst</span>
+                    </div>
+                    <button 
+                        onClick={onNewChat}
+                        className="w-full bg-blue-600 hover:bg-blue-700 text-white rounded-md p-3 flex items-center gap-2 transition-colors duration-200"
+                    >
+                        <i className="ph ph-plus"></i>
+                        新しいチャット
+                    </button>
+                </div>
+                
+                {/* AI Tools Section */}
+                <div className="px-4 mb-4">
+                    <p className="text-xs text-gray-500 font-bold mb-3 uppercase tracking-wider flex items-center gap-1">
+                        <i className="ph ph-sparkle"></i> AI Tools
+                    </p>
+                    <div className="space-y-2">
+                         <button 
+                            onClick={() => onRunTool('predict')}
+                            className="w-full text-left text-sm p-2 bg-gradient-to-r from-indigo-900 to-purple-900 hover:from-indigo-800 hover:to-purple-800 rounded border border-indigo-700/50 text-indigo-100 transition-all flex items-center gap-2 group"
+                        >
+                            <span className="group-hover:scale-110 transition-transform">✨</span> 来週のトレンド予測
+                        </button>
+                        <button 
+                            onClick={() => onRunTool('plan')}
+                            className="w-full text-left text-sm p-2 bg-gradient-to-r from-indigo-900 to-purple-900 hover:from-indigo-800 hover:to-purple-800 rounded border border-indigo-700/50 text-indigo-100 transition-all flex items-center gap-2 group"
+                        >
+                            <span className="group-hover:scale-110 transition-transform">✨</span> 番組企画案の生成
+                        </button>
+                         <button 
+                            onClick={() => onRunTool('report')}
+                            className="w-full text-left text-sm p-2 bg-gradient-to-r from-indigo-900 to-purple-900 hover:from-indigo-800 hover:to-purple-800 rounded border border-indigo-700/50 text-indigo-100 transition-all flex items-center gap-2 group"
+                        >
+                            <span className="group-hover:scale-110 transition-transform">✨</span> マーケティングレポート
+                        </button>
+                    </div>
+                </div>
+
+                <div className="flex-1 overflow-y-auto px-4">
+                    <p className="text-xs text-gray-500 font-bold mb-3 uppercase tracking-wider">History</p>
+                    <div className="space-y-2">
+                        <div className="text-sm p-2 hover:bg-gray-800 rounded cursor-pointer truncate text-gray-300">
+                            食のトレンドを教えて
+                        </div>
+                        <div className="text-sm p-2 hover:bg-gray-800 rounded cursor-pointer truncate text-gray-300">
+                            最新のスイーツは？
+                        </div>
+                         <div className="text-sm p-2 hover:bg-gray-800 rounded cursor-pointer truncate text-gray-300">
+                            ラーメンの流行
+                        </div>
+                    </div>
+                </div>
+
+                <div className="p-4 border-t border-gray-800">
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-blue-500 to-purple-500 flex items-center justify-center text-xs font-bold">
+                                MD
+                            </div>
+                            <div className="text-sm">
+                                <p className="font-medium">Demo User</p>
+                                <p className="text-xs text-gray-400">M-Data Viewer</p>
+                            </div>
+                        </div>
+                        <button 
+                            onClick={onOpenSettings}
+                            className={`p-2 rounded-full hover:bg-gray-700 transition-colors ${hasKey ? 'text-green-400' : 'text-gray-400'}`}
+                            title={hasKey ? "Gemini API連携中" : "APIキー未設定"}
+                        >
+                            <i className="ph ph-gear text-xl"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        );
+
+        const Message = ({ message }) => {
+            const isAI = message.role === 'assistant';
+            
+            // Markdown rendering
+            const renderContent = (content) => {
+                return { __html: marked.parse(content) };
+            };
+
+            return (
+                <div className={`flex w-full ${isAI ? 'justify-start' : 'justify-end'} mb-6`}>
+                    <div className={`flex max-w-[90%] md:max-w-[85%] ${isAI ? 'flex-row' : 'flex-row-reverse'} gap-4`}>
+                        {/* Avatar */}
+                        <div className={`w-8 h-8 md:w-10 md:h-10 rounded-full flex-shrink-0 flex items-center justify-center ${isAI ? 'bg-blue-600 text-white' : 'bg-gray-300 text-gray-600'}`}>
+                            {isAI ? <i className="ph ph-robot text-xl"></i> : <i className="ph ph-user text-xl"></i>}
+                        </div>
+
+                        {/* Content */}
+                        <div className="flex flex-col gap-2 min-w-0">
+                            <div className="font-bold text-sm text-gray-700">
+                                {isAI ? 'TV Meta Analyst' : 'You'}
+                            </div>
+                            <div className={`bg-white p-4 md:p-6 rounded-2xl shadow-sm border border-gray-100 ${!isAI && 'bg-blue-50 border-blue-100'}`}>
+                                <div 
+                                    className="prose text-sm md:text-base break-words"
+                                    dangerouslySetInnerHTML={renderContent(message.content)}
+                                />
+                            </div>
+                            
+                            {/* Evidence Data Section (Only for AI with evidence) */}
+                            {isAI && message.evidence && message.evidence.length > 0 && (
+                                <div className="mt-2 bg-white rounded-lg border border-gray-200 overflow-hidden shadow-sm w-full">
+                                    <details className="group">
+                                        <summary className="flex items-center justify-between p-3 bg-gray-50 cursor-pointer hover:bg-gray-100 transition-colors">
+                                            <span className="text-sm font-semibold text-gray-600 flex items-center gap-2">
+                                                <i className="ph ph-table"></i>
+                                                参照データ (AI抽出): {message.evidence.length}件
+                                            </span>
+                                            <span className="transform group-open:rotate-180 transition-transform">
+                                                <i className="ph ph-caret-down text-gray-400"></i>
+                                            </span>
+                                        </summary>
+                                        <div className="overflow-x-auto max-h-60 overflow-y-auto">
+                                            <table className="w-full text-xs text-left text-gray-600">
+                                                <thead className="text-xs text-gray-700 uppercase bg-gray-50 border-b sticky top-0">
+                                                    <tr>
+                                                        <th scope="col" className="px-3 py-2 whitespace-nowrap bg-gray-50">放送日</th>
+                                                        <th scope="col" className="px-3 py-2 whitespace-nowrap bg-gray-50">局</th>
+                                                        <th scope="col" className="px-3 py-2 bg-gray-50">番組名</th>
+                                                        <th scope="col" className="px-3 py-2 bg-gray-50">トレンドテーマ</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {message.evidence.map((item, idx) => (
+                                                        <tr key={idx} className="bg-white border-b hover:bg-gray-50">
+                                                            <td className="px-3 py-2 whitespace-nowrap">{item.date.slice(5)}</td>
+                                                            <td className="px-3 py-2 whitespace-nowrap font-medium text-gray-900">{item.station}</td>
+                                                            <td className="px-3 py-2">{item.program}</td>
+                                                            <td className="px-3 py-2 text-blue-600 font-medium">{item.theme}</td>
+                                                        </tr>
+                                                    ))}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </details>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        const ChatArea = ({ apiKey, setApiKey, toolTrigger }) => {
+            const [messages, setMessages] = React.useState([
+                { 
+                    role: 'assistant', 
+                    content: 'こんにちは。TVメタデータ分析AIエージェントです。\n直近のテレビ放送内容から、食のトレンドや番組露出傾向を分析します。\n\n「最近のスイーツの流行は？」\n「ラーメンのトレンドを教えて」\n\n左サイドバーの「✨ AI Tools」を使うと、トレンド予測や企画案の作成も可能です。',
+                    evidence: []
+                }
+            ]);
+            const [input, setInput] = React.useState('');
+            const [isLoading, setIsLoading] = React.useState(false);
+            const messagesEndRef = React.useRef(null);
+
+            const scrollToBottom = () => {
+                messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+            };
+
+            React.useEffect(() => {
+                scrollToBottom();
+            }, [messages, isLoading]);
+
+            // Handle Tool Trigger from Parent
+            React.useEffect(() => {
+                if (toolTrigger) {
+                    handleToolExecution(toolTrigger);
+                }
+            }, [toolTrigger]);
+
+            const handleToolExecution = async (toolType) => {
+                if (!apiKey) {
+                    setMessages(prev => [...prev, { 
+                        role: 'assistant', 
+                        content: '⚠️ **この機能を使用するにはAPIキーが必要です**\n\n「AI Tools」機能はGeminiの高度な推論能力を使用するため、左下の設定ボタン⚙️からAPIキーを設定してください。',
+                        evidence: []
+                    }]);
+                    return;
+                }
+
+                let prompt = "";
+                let userDisplay = "";
+
+                switch(toolType) {
+                    case 'predict':
+                        userDisplay = "✨ 来週のトレンドを予測して";
+                        prompt = "提供されたTVメタデータ（過去データ）の傾向（食感の変化、健康志向の具体化など）を分析し、**来週以降に流行しそうな食のトレンド**を3つ予測してください。それぞれの予測について、なぜそう考えたかという「データに基づく根拠」を明確に示してください。";
+                        break;
+                    case 'plan':
+                        userDisplay = "✨ 番組の企画案を作って";
+                        prompt = "提供されたTVメタデータを活用して、**情報番組で放送するための特集コーナー企画案**を3つ作成してください。各企画について「タイトル」「ターゲット層」「放送するべき時間帯（朝・昼・夜）」「紹介する具体的な店舗や商品（データから引用、またはデータに基づく架空の例）」を含めてください。";
+                        break;
+                    case 'report':
+                        userDisplay = "✨ マーケティングレポートを作成して";
+                        prompt = "提供されたTVメタデータを元に、食品メーカーのマーケティング担当者が読むための**週次トレンドレポート**を作成してください。ビジネス文書の形式で、「エグゼクティブサマリー」「カテゴリ別動向」「注目のキーワード」「今後の対策・提言」の章立てで構成してください。";
+                        break;
+                    default:
+                        return;
+                }
+
+                setMessages(prev => [...prev, { role: 'user', content: userDisplay }]);
+                setIsLoading(true);
+                const result = await callGeminiAPI(prompt, true); // true = isTool
+                setMessages(prev => [...prev, { 
+                    role: 'assistant', 
+                    content: result.text,
+                    evidence: result.evidence
+                }]);
+                setIsLoading(false);
+            };
+
+            // --- LOCAL LOGIC (No API Key) ---
+            const analyzeQueryLocal = (query) => {
+                const keywords = query.replace(/教えて|トレンド|流行|は？|の|について/g, ' ').split(/\s+/).filter(k => k);
+                const hits = MOCK_DATA.filter(item => {
+                    const text = `${item.headline} ${item.summary} ${item.theme} ${item.genre} ${item.tags} ${item.explanation}`.toLowerCase();
+                    return keywords.some(k => text.includes(k.toLowerCase()));
+                });
+
+                const isGeneral = keywords.length === 0 || ["食", "最近", "全部"].includes(keywords[0]);
+                const targetData = isGeneral ? MOCK_DATA : hits;
+
+                if (targetData.length === 0) {
+                    return {
+                        text: `申し訳ありません。ご指定の「${query}」に関するデータは、現在のTVメタデータ（直近1ヶ月分）には見当たりませんでした。\n別のキーワードでお試しいただくか、APIキーを設定してより高度な解析をお試しください。`,
+                        evidence: []
+                    };
+                }
+
+                // Simple Local Aggregation
+                const genreCount = {};
+                targetData.forEach(item => { genreCount[item.genre] = (genreCount[item.genre] || 0) + 1; });
+                const sortedGenres = Object.entries(genreCount).sort((a,b) => b[1] - a[1]);
+                const topTrend = targetData[0];
+
+                return {
+                    text: `**(ローカル分析モード)**\n\n**【結論】**\n「${query}」に関しては、**${targetData.length}件**の露出が確認されました。主に**${topTrend.theme}**などが取り上げられています。\n\n**詳細分析:**\n- 最多ジャンル: **${sortedGenres[0][0]}** (${sortedGenres[0][1]}件)\n- 特徴キーワード: ${topTrend.tags}\n\n※Gemini APIキーを設定すると、より文脈に沿った自然な回答が生成されます。`,
+                    evidence: targetData
+                };
+            };
+
+            // --- GEMINI API LOGIC ---
+            const callGeminiAPI = async (query, isTool = false) => {
+                const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+                
+                // Context Construction
+                const systemPrompt = `
+あなたはTVメタデータを分析する専門のアシスタントです。
+以下のJSONデータは、2026年9月〜10月のテレビ番組で取り上げられた食のトレンド情報です。
+ユーザーの質問に対して、このデータのみを根拠として回答してください。
+
+### データセット (TV Metadata):
+${JSON.stringify(MOCK_DATA)}
+
+### 回答のルール:
+1. まず【結論】を簡潔に述べる。
+2. 次に【詳細分析】として、ジャンル傾向、頻出キーワード、露出の多い番組局などの傾向を分析する。
+3. 最後に【根拠データ】として、具体的な番組名や店舗名、商品名を挙げて説明する。
+4. データにない情報は「データに含まれていません」と答える。
+5. 出力はMarkdown形式で行う。
+${isTool ? "6. ツール実行モードです。ユーザーの指示に従い、創造的かつ論理的に分析・提案を行ってください。" : ""}
+`;
+
+                const payload = {
+                    contents: [
+                        {
+                            parts: [
+                                { text: systemPrompt },
+                                { text: isTool ? `以下のタスクを実行してください: ${query}` : `ユーザーの質問: ${query}` }
+                            ]
+                        }
+                    ]
+                };
+
+                try {
+                    const response = await fetch(API_URL, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+
+                    const data = await response.json();
+                    
+                    if (data.error) {
+                        throw new Error(data.error.message);
+                    }
+
+                    const aiText = data.candidates[0].content.parts[0].text;
+                    
+                    // Simple logic for evidence extraction
+                    const keywords = query.replace(/教えて|トレンド|流行|は？|の|について/g, ' ').split(/\s+/).filter(k => k);
+                     const relevantData = MOCK_DATA.filter(item => {
+                        const text = `${item.headline} ${item.summary} ${item.theme} ${item.genre}`.toLowerCase();
+                        // For tools, we might want to show more data, or just data that matches the output themes (hard to do without structured output)
+                        // So for tools, we just show top relevant or all if query is generic
+                        return isTool ? true : (keywords.some(k => text.includes(k.toLowerCase())) || aiText.includes(item.theme));
+                    });
+                    
+                    return {
+                        text: aiText,
+                        evidence: relevantData.length > 0 ? relevantData.slice(0, 10) : MOCK_DATA.slice(0, 5) // Fallback limit
+                    };
+
+                } catch (error) {
+                    console.error("Gemini API Error:", error);
+                    return {
+                        text: `⚠️ **エラーが発生しました**\nGemini APIの呼び出しに失敗しました。\nAPIキーが正しいか確認してください。\n\nエラー詳細: ${error.message}`,
+                        evidence: []
+                    };
+                }
+            };
+
+            const handleSubmit = async (e) => {
+                e.preventDefault();
+                if (!input.trim()) return;
+
+                const userMsg = input;
+                setMessages(prev => [...prev, { role: 'user', content: userMsg }]);
+                setInput('');
+                setIsLoading(true);
+
+                // Decide execution mode
+                if (apiKey) {
+                    // Use Gemini
+                    const result = await callGeminiAPI(userMsg);
+                    setMessages(prev => [...prev, { 
+                        role: 'assistant', 
+                        content: result.text,
+                        evidence: result.evidence
+                    }]);
+                } else {
+                    // Use Local Logic (Simulation)
+                    setTimeout(() => {
+                        const result = analyzeQueryLocal(userMsg);
+                        setMessages(prev => [...prev, { 
+                            role: 'assistant', 
+                            content: result.text,
+                            evidence: result.evidence
+                        }]);
+                        setIsLoading(false);
+                    }, 800);
+                    setIsLoading(false);
+                    return; 
+                }
+                setIsLoading(false);
+            };
+
+            return (
+                <div className="flex-1 flex flex-col h-full relative">
+                    {/* Header (Mobile) */}
+                    <div className="md:hidden bg-white p-4 border-b flex items-center justify-between shadow-sm z-10">
+                        <span className="font-bold text-gray-800">TV Meta Analyst</span>
+                        <button className="text-gray-600"><i className="ph ph-list text-2xl"></i></button>
+                    </div>
+
+                    {/* Messages Area */}
+                    <div className="flex-1 overflow-y-auto p-4 md:p-8 space-y-4">
+                        {messages.map((msg, idx) => (
+                            <Message key={idx} message={msg} />
+                        ))}
+                        
+                        {isLoading && (
+                            <div className="flex justify-start mb-6">
+                                <div className="flex gap-4">
+                                    <div className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-blue-600 text-white flex-shrink-0 flex items-center justify-center">
+                                        <i className="ph ph-robot text-xl"></i>
+                                    </div>
+                                    <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-1">
+                                        <div className="w-2 h-2 bg-gray-400 rounded-full typing-dot"></div>
+                                        <div className="w-2 h-2 bg-gray-400 rounded-full typing-dot"></div>
+                                        <div className="w-2 h-2 bg-gray-400 rounded-full typing-dot"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                        <div ref={messagesEndRef} />
+                    </div>
+
+                    {/* Input Area */}
+                    <div className="bg-white border-t p-4 md:p-6 shadow-lg z-10">
+                        <div className="max-w-4xl mx-auto relative">
+                            <form onSubmit={handleSubmit} className="relative flex items-center">
+                                <textarea 
+                                    value={input}
+                                    onChange={(e) => setInput(e.target.value)}
+                                    onKeyDown={(e) => {
+                                        if(e.key === 'Enter' && !e.shiftKey) {
+                                            e.preventDefault();
+                                            handleSubmit(e);
+                                        }
+                                    }}
+                                    placeholder={apiKey ? "Geminiが分析します。質問を入力してください..." : "キーワードを入力してください（APIキー未設定）..."}
+                                    className="w-full bg-gray-100 text-gray-800 rounded-xl pl-4 pr-12 py-4 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all resize-none shadow-inner"
+                                    rows="1"
+                                    style={{minHeight: '60px'}}
+                                ></textarea>
+                                <button 
+                                    type="submit"
+                                    disabled={!input.trim() || isLoading}
+                                    className={`absolute right-3 p-2 rounded-lg transition-colors ${!input.trim() ? 'text-gray-400 cursor-not-allowed' : 'bg-blue-600 text-white hover:bg-blue-700'}`}
+                                >
+                                    <i className="ph ph-paper-plane-right text-xl"></i>
+                                </button>
+                            </form>
+                            <p className="text-center text-xs text-gray-400 mt-2">
+                                {apiKey ? 
+                                    <span className="text-green-600 flex items-center justify-center gap-1"><i className="ph ph-check-circle"></i> Gemini API 連携中</span> : 
+                                    <span className="text-orange-500 flex items-center justify-center gap-1"><i className="ph ph-warning-circle"></i> APIキー未設定: ローカルモードで動作中</span>
+                                }
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        const App = () => {
+            const [isSettingsOpen, setIsSettingsOpen] = React.useState(false);
+            const [apiKey, setApiKey] = React.useState('');
+            const [toolTrigger, setToolTrigger] = React.useState(null); // 'predict', 'plan', 'report'
+
+            const handleRunTool = (tool) => {
+                setToolTrigger(null); // Reset first to allow re-triggering same tool
+                setTimeout(() => setToolTrigger(tool), 10);
+            };
+
+            return (
+                <div className="flex h-screen w-full bg-gray-50 text-gray-900 overflow-hidden">
+                    <Sidebar 
+                        onNewChat={() => window.location.reload()} 
+                        onOpenSettings={() => setIsSettingsOpen(true)}
+                        hasKey={!!apiKey}
+                        onRunTool={handleRunTool}
+                    />
+                    <ChatArea 
+                        apiKey={apiKey} 
+                        setApiKey={setApiKey} 
+                        toolTrigger={toolTrigger}
+                    />
+                    
+                    <ApiKeyModal 
+                        isOpen={isSettingsOpen} 
+                        onClose={() => setIsSettingsOpen(false)}
+                        onSave={(key) => {
+                            setApiKey(key);
+                            setIsSettingsOpen(false);
+                        }}
+                        currentKey={apiKey}
+                    />
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
