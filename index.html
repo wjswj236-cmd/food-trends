@@ -82,12 +82,16 @@
     <script type="text/babel">
         // --- SECURITY CONFIG ---
         
-        // 【重要】手順:
-        // 1. このファイルをブラウザで開き、左下の設定(⚙️) > 「管理者用: 暗号化コード生成」をクリック
-        // 2. 新しいAPIキーを入力して、暗号化文字列を生成
-        // 3. 生成された文字列を、下の "" の中に貼り付けて保存してください。
+        // 【重要】設定手順:
+        // 1. 下の SHARED_PASSWORD を好きなパスワードに変更する（例: "mytvtrend"）
+        // 2. このファイルをブラウザで開き、左下の設定(⚙️) > 「管理者設定」タブをクリック
+        // 3. あなたのAPIキーを入力して「暗号化文字列」を生成する
+        // 4. 生成された文字列をコピーし、下の ENCRYPTED_API_KEY の "" の中に貼り付けて保存する
         
-        const ENCRYPTED_API_KEY = "U2FsdGVkX1/axMXoKZ3W+hWMgVXcCaiWHpfGKfh9nLp4Uh21UFG6n0oRWHZHzBth9gaFP01eP9zRE5YDv2XHHg=="; 
+        // ▼ここに生成した暗号化文字列を貼り付けます
+        const ENCRYPTED_API_KEY = "U2FsdGVkX196K4Zl8EzYf55cE0tJFbeURhM7mi3B4gMAicqTuZMHUtNWQCTaGb9O7KJA4FDaYjhifCgz+D4ipQ=="; 
+        
+        // ▼ここに共有用のパスワードを設定します（これを変更したら必ず暗号化文字列も作り直してください）
         const SHARED_PASSWORD = "mdata-2026"; 
 
         // --- DATASET (50 items) ---
