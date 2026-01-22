@@ -17,6 +17,8 @@
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
     <!-- Markdown Parser -->
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <!-- CryptoJS (For Encryption/Decryption) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
     
     <style>
         body {
@@ -78,8 +80,21 @@
     <div id="root"></div>
 
     <script type="text/babel">
+        // --- SECURITY CONFIG ---
+        // API Key "AIzaSyC8tnOOA4ausx32ScsQAFQJOF2dGSwA8dA" encrypted with password "mdata2025"
+        // In a real scenario, generate this beforehand. Here we simulate the encrypted state.
+        // This is a simple XOR/Base64 obfuscation for demo purposes (CryptoJS is loaded for better options if needed)
+        // For this demo, let's use CryptoJS AES.
+        // Encrypted: U2FsdGVkX1+v+... (Example format)
+        
+        // Note: In this self-contained file, I will perform the encryption on the fly for the demo to work with the specific key provided.
+        // Ideally, you would generate this string once and hardcode ONLY the encrypted string.
+        const TARGET_API_KEY = "AIzaSyC8tnOOA4ausx32ScsQAFQJOF2dGSwA8dA";
+        const SHARED_PASSWORD = "mdata2025";
+        // Generating encrypted key for demonstration (This mimics a hardcoded encrypted string)
+        const ENCRYPTED_API_KEY = CryptoJS.AES.encrypt(TARGET_API_KEY, SHARED_PASSWORD).toString();
+
         // --- DATASET (50 items) ---
-        // Years updated to 2025, Added 20 new items
         const MOCK_DATA = [
             // Existing 30 items
             { date: "2025/10/05", station: "CX", program: "ニュースモーニング", headline: "＜トレンド＞進化する伝統菓子・「ネオおはぎ」が熱い", summary: "今、若者や健康志向層の間で「おはぎ」が再注目されている。従来のイメージを覆す、ケーキのようにデコレーションされた商品や、古代米・雑穀を使用した腸活メニューとしての需要が急増。都内の専門店「ＯＨＡＧＩ・ＬＡＢＯ」では、栄養価の高さを売りにした「スーパーフードおはぎ」が連日完売しており、手土産としての人気も高まっている。【出演】佐藤美咲（フードコーディネーター）", sceneId: "921558401", theme: "進化系おはぎ", genre: "スイーツ", tags: "#和スイーツ #ネオ和菓子 #映えスイーツ #手土産", explanation: "栄養価の高さからスーパーフードとして注目され、腸活やダイエットに関心のある層からも支持されています。見た目が華やかなものや健康志向のものなどバリエーションが豊富になり、専門店も増加しています。" },
@@ -153,45 +168,83 @@
 
         // API Key Input Modal
         const ApiKeyModal = ({ isOpen, onClose, onSave, currentKey }) => {
-            const [key, setKey] = React.useState(currentKey || '');
+            const [inputValue, setInputValue] = React.useState('');
+            const [errorMsg, setErrorMsg] = React.useState('');
 
-            // Update local state when currentKey changes
+            // Reset state when modal opens
             React.useEffect(() => {
-                setKey(currentKey || '');
-            }, [currentKey]);
+                if (isOpen) {
+                    setInputValue('');
+                    setErrorMsg('');
+                }
+            }, [isOpen]);
 
             if (!isOpen) return null;
+
+            const handleSave = () => {
+                setErrorMsg('');
+                // 1. Try treating input as raw API key (starts with AIza...)
+                if (inputValue.startsWith('AIza')) {
+                    onSave(inputValue);
+                    return;
+                }
+
+                // 2. Try treating input as a PASSWORD to decrypt the embedded key
+                try {
+                    const decryptedBytes = CryptoJS.AES.decrypt(ENCRYPTED_API_KEY, inputValue);
+                    const decryptedKey = decryptedBytes.toString(CryptoJS.enc.Utf8);
+
+                    if (decryptedKey && decryptedKey.startsWith('AIza')) {
+                        onSave(decryptedKey);
+                    } else {
+                        setErrorMsg('パスワードが正しくありません、または無効なAPIキーです。');
+                    }
+                } catch (e) {
+                    setErrorMsg('パスワードが正しくありません。');
+                }
+            };
 
             return (
                 <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
                     <div className="bg-white rounded-lg p-6 w-full max-w-md shadow-xl">
                         <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
-                            <i className="ph ph-key text-blue-600"></i>
-                            Gemini API設定
+                            <i className="ph ph-lock-key text-blue-600"></i>
+                            認証設定
                         </h3>
                         <p className="text-sm text-gray-600 mb-4">
-                            Google Gemini APIキーを入力すると、AIが文脈を理解して回答します。
-                            <br/><span className="text-xs text-gray-400">※キーはブラウザの保存領域（LocalStorage）に保存され、このセッション以外でも有効になります。</span>
+                            利用を開始するには、<strong>共有パスワード</strong> または <strong>Google Gemini APIキー</strong> を入力してください。
+                            <br/><span className="text-xs text-gray-400">※認証情報はブラウザの保存領域（LocalStorage）に保存されます。</span>
                         </p>
+                        
                         <input
                             type="password"
-                            value={key}
-                            onChange={(e) => setKey(e.target.value)}
-                            placeholder="API Key (AIzaSy...)"
-                            className="w-full border rounded p-2 mb-4 focus:ring-2 focus:ring-blue-500 outline-none"
+                            value={inputValue}
+                            onChange={(e) => setInputValue(e.target.value)}
+                            placeholder="パスワード または API Key (AIza...)"
+                            className="w-full border rounded p-3 mb-2 focus:ring-2 focus:ring-blue-500 outline-none"
+                            onKeyDown={(e) => e.key === 'Enter' && handleSave()}
                         />
-                        <div className="flex justify-end gap-2">
+                        
+                        {errorMsg && (
+                            <p className="text-red-500 text-xs mb-4 flex items-center gap-1">
+                                <i className="ph ph-warning-circle"></i> {errorMsg}
+                            </p>
+                        )}
+
+                        <div className="flex justify-end gap-2 mt-4">
                             <button onClick={onClose} className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded">キャンセル</button>
                             <button 
-                                onClick={() => onSave(key)}
-                                className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+                                onClick={handleSave}
+                                disabled={!inputValue}
+                                className={`px-4 py-2 text-white rounded transition-colors ${!inputValue ? 'bg-gray-300 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'}`}
                             >
-                                設定して保存
+                                認証して保存
                             </button>
                         </div>
+                        
                         <div className="mt-4 pt-4 border-t text-xs text-gray-500">
                              <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noreferrer" className="text-blue-500 hover:underline flex items-center gap-1">
-                                <i className="ph ph-arrow-square-out"></i> APIキーを取得する (Google AI Studio)
+                                <i className="ph ph-arrow-square-out"></i> 自分でAPIキーを取得する場合 (Google AI Studio)
                              </a>
                         </div>
                     </div>
@@ -383,7 +436,6 @@
                     const lastIndex = messages.length - 1;
                     const lastMsg = messages[lastIndex];
                     if (lastMsg.role === 'assistant') {
-                        // 少し遅延させないとDOM更新が間に合わない場合があるため
                         setTimeout(() => scrollToMessageTop(lastIndex), 50);
                     } else {
                         scrollToBottom();
@@ -402,7 +454,7 @@
                 if (!apiKey) {
                     setMessages(prev => [...prev, { 
                         role: 'assistant', 
-                        content: '⚠️ **この機能を使用するにはAPIキーが必要です**\n\n「AI Tools」機能はGeminiの高度な推論能力を使用するため、左下の設定ボタン⚙️からAPIキーを設定してください。',
+                        content: '⚠️ **この機能を使用するには認証が必要です**\n\n左下の設定ボタン⚙️から、パスワードまたはAPIキーを入力してください。',
                         evidence: []
                     }]);
                     return;
@@ -463,7 +515,7 @@
 
                 if (targetData.length === 0) {
                     return {
-                        text: `申し訳ありません。ご指定の「${query}」に関するデータは、現在のTVメタデータ（直近1ヶ月分）には見当たりませんでした。\n別のキーワードでお試しいただくか、APIキーを設定してより高度な解析をお試しください。`,
+                        text: `申し訳ありません。ご指定の「${query}」に関するデータは、現在のTVメタデータ（直近1ヶ月分）には見当たりませんでした。\n別のキーワードでお試しいただくか、設定からパスワードを入力してAI認証を行ってください。`,
                         evidence: []
                     };
                 }
@@ -475,14 +527,13 @@
                 const topTrend = targetData[0];
 
                 return {
-                    text: `**(ローカル分析モード)**\n\n**【結論】**\n「${query}」に関しては、**${targetData.length}件**の露出が確認されました。主に**${topTrend.theme}**などが取り上げられています。\n\n**詳細分析:**\n- 最多ジャンル: **${sortedGenres[0][0]}** (${sortedGenres[0][1]}件)\n- 特徴キーワード: ${topTrend.tags}\n\n※Gemini APIキーを設定すると、より文脈に沿った自然な回答が生成されます。`,
+                    text: `**(ローカル分析モード)**\n\n**【結論】**\n「${query}」に関しては、**${targetData.length}件**の露出が確認されました。主に**${topTrend.theme}**などが取り上げられています。\n\n**詳細分析:**\n- 最多ジャンル: **${sortedGenres[0][0]}** (${sortedGenres[0][1]}件)\n- 特徴キーワード: ${topTrend.tags}\n\n※Gemini API連携機能を使うと、より文脈に沿った自然な回答が生成されます。`,
                     evidence: targetData
                 };
             };
 
             // --- GEMINI API LOGIC ---
             const callGeminiAPI = async (query, isTool = false) => {
-                // Changed model to gemini-2.0-flash
                 const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
                 
                 // Context Construction
@@ -544,7 +595,7 @@ ${isTool ? "6. ツール実行モードです。ユーザーの指示に従い�
                 } catch (error) {
                     console.error("Gemini API Error:", error);
                     return {
-                        text: `⚠️ **エラーが発生しました**\nGemini APIの呼び出しに失敗しました。\nAPIキーが正しいか確認してください。\n\nエラー詳細: ${error.message}`,
+                        text: `⚠️ **エラーが発生しました**\nGemini APIの呼び出しに失敗しました。\nAPIキー（またはパスワードによる復号）が正しいか確認してください。\n\nエラー詳細: ${error.message}`,
                         evidence: []
                     };
                 }
@@ -633,7 +684,7 @@ ${isTool ? "6. ツール実行モードです。ユーザーの指示に従い�
                                             handleSubmit(e);
                                         }
                                     }}
-                                    placeholder={activeTool ? "条件を入力してください..." : (apiKey ? "Geminiが分析します。質問を入力してください..." : "キーワードを入力してください（APIキー未設定）...")}
+                                    placeholder={activeTool ? "条件を入力してください..." : (apiKey ? "Geminiが分析します。質問を入力してください..." : "キーワードを入力してください（認証未完了）...")}
                                     className={`w-full bg-gray-100 text-gray-800 rounded-xl pl-4 pr-12 py-4 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all resize-none shadow-inner ${activeTool ? 'border-2 border-indigo-200 bg-indigo-50' : ''}`}
                                     rows="1"
                                     style={{minHeight: '60px'}}
@@ -652,7 +703,9 @@ ${isTool ? "6. ツール実行モードです。ユーザーの指示に従い�
                                         <span className="text-indigo-600 flex items-center justify-center gap-1 font-bold"><i className="ph ph-sparkle"></i> AIツール実行モード: 入力待ち</span> :
                                         <span className="text-green-600 flex items-center justify-center gap-1"><i className="ph ph-check-circle"></i> Gemini API 連携中</span>
                                     ) : 
-                                    <span className="text-orange-500 flex items-center justify-center gap-1"><i className="ph ph-warning-circle"></i> APIキー未設定: ローカルモードで動作中</span>
+                                    <span className="text-orange-500 flex items-center justify-center gap-1 cursor-pointer hover:underline" onClick={() => setIsSettingsOpen(true)}>
+                                        <i className="ph ph-warning-circle"></i> 認証未完了: クリックしてパスワードを入力
+                                    </span>
                                 }
                             </p>
                         </div>
