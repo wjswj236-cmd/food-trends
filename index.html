@@ -81,18 +81,14 @@
 
     <script type="text/babel">
         // --- SECURITY CONFIG ---
-        // API Key "AIzaSyC8tnOOA4ausx32ScsQAFQJOF2dGSwA8dA" encrypted with password "mdata2025"
-        // In a real scenario, generate this beforehand. Here we simulate the encrypted state.
-        // This is a simple XOR/Base64 obfuscation for demo purposes (CryptoJS is loaded for better options if needed)
-        // For this demo, let's use CryptoJS AES.
-        // Encrypted: U2FsdGVkX1+v+... (Example format)
         
-        // Note: In this self-contained file, I will perform the encryption on the fly for the demo to work with the specific key provided.
-        // Ideally, you would generate this string once and hardcode ONLY the encrypted string.
-        const TARGET_API_KEY = "AIzaSyC8tnOOA4ausx32ScsQAFQJOF2dGSwA8dA";
-        const SHARED_PASSWORD = "mdata2025";
-        // Generating encrypted key for demonstration (This mimics a hardcoded encrypted string)
-        const ENCRYPTED_API_KEY = CryptoJS.AES.encrypt(TARGET_API_KEY, SHARED_PASSWORD).toString();
+        // 【重要】手順:
+        // 1. このファイルをブラウザで開き、左下の設定(⚙️) > 「管理者用: 暗号化コード生成」をクリック
+        // 2. 新しいAPIキーを入力して、暗号化文字列を生成
+        // 3. 生成された文字列を、下の "" の中に貼り付けて保存してください。
+        
+        const ENCRYPTED_API_KEY = "U2FsdGVkX1/axMXoKZ3W+hWMgVXcCaiWHpfGKfh9nLp4Uh21UFG6n0oRWHZHzBth9gaFP01eP9zRE5YDv2XHHg=="; 
+        const SHARED_PASSWORD = "mdata-2026"; 
 
         // --- DATASET (50 items) ---
         const MOCK_DATA = [
@@ -170,12 +166,18 @@
         const ApiKeyModal = ({ isOpen, onClose, onSave, currentKey }) => {
             const [inputValue, setInputValue] = React.useState('');
             const [errorMsg, setErrorMsg] = React.useState('');
+            const [isAdminMode, setIsAdminMode] = React.useState(false); // Tab state
+            const [rawKeyInput, setRawKeyInput] = React.useState('');
+            const [generatedString, setGeneratedString] = React.useState('');
 
             // Reset state when modal opens
             React.useEffect(() => {
                 if (isOpen) {
                     setInputValue('');
                     setErrorMsg('');
+                    setIsAdminMode(false);
+                    setRawKeyInput('');
+                    setGeneratedString('');
                 }
             }, [isOpen]);
 
@@ -183,70 +185,152 @@
 
             const handleSave = () => {
                 setErrorMsg('');
-                // 1. Try treating input as raw API key (starts with AIza...)
+                
+                // 1. Try checking against the embedded encrypted key
+                if (ENCRYPTED_API_KEY) {
+                    try {
+                        const decryptedBytes = CryptoJS.AES.decrypt(ENCRYPTED_API_KEY, inputValue);
+                        const decryptedKey = decryptedBytes.toString(CryptoJS.enc.Utf8);
+
+                        if (decryptedKey && decryptedKey.startsWith('AIza')) {
+                            onSave(decryptedKey);
+                            return;
+                        }
+                    } catch (e) {
+                        // Decryption failed, likely wrong password
+                    }
+                }
+
+                // 2. Fallback: Check if user entered a raw API key directly
                 if (inputValue.startsWith('AIza')) {
                     onSave(inputValue);
                     return;
                 }
 
-                // 2. Try treating input as a PASSWORD to decrypt the embedded key
-                try {
-                    const decryptedBytes = CryptoJS.AES.decrypt(ENCRYPTED_API_KEY, inputValue);
-                    const decryptedKey = decryptedBytes.toString(CryptoJS.enc.Utf8);
+                setErrorMsg('パスワードが正しくありません、または無効なAPIキーです。');
+            };
 
-                    if (decryptedKey && decryptedKey.startsWith('AIza')) {
-                        onSave(decryptedKey);
-                    } else {
-                        setErrorMsg('パスワードが正しくありません、または無効なAPIキーです。');
-                    }
-                } catch (e) {
-                    setErrorMsg('パスワードが正しくありません。');
+            const handleGenerateEncrypted = () => {
+                if (!rawKeyInput.startsWith('AIza')) {
+                    alert('有効なAPIキーを入力してください (AIza...)');
+                    return;
                 }
+                const encrypted = CryptoJS.AES.encrypt(rawKeyInput, SHARED_PASSWORD).toString();
+                setGeneratedString(encrypted);
             };
 
             return (
                 <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
                     <div className="bg-white rounded-lg p-6 w-full max-w-md shadow-xl">
-                        <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
-                            <i className="ph ph-lock-key text-blue-600"></i>
-                            認証設定
-                        </h3>
-                        <p className="text-sm text-gray-600 mb-4">
-                            利用を開始するには、<strong>共有パスワード</strong> または <strong>Google Gemini APIキー</strong> を入力してください。
-                            <br/><span className="text-xs text-gray-400">※認証情報はブラウザの保存領域（LocalStorage）に保存されます。</span>
-                        </p>
                         
-                        <input
-                            type="password"
-                            value={inputValue}
-                            onChange={(e) => setInputValue(e.target.value)}
-                            placeholder="パスワード または API Key (AIza...)"
-                            className="w-full border rounded p-3 mb-2 focus:ring-2 focus:ring-blue-500 outline-none"
-                            onKeyDown={(e) => e.key === 'Enter' && handleSave()}
-                        />
-                        
-                        {errorMsg && (
-                            <p className="text-red-500 text-xs mb-4 flex items-center gap-1">
-                                <i className="ph ph-warning-circle"></i> {errorMsg}
-                            </p>
-                        )}
-
-                        <div className="flex justify-end gap-2 mt-4">
-                            <button onClick={onClose} className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded">キャンセル</button>
+                        {/* Tabs */}
+                        <div className="flex border-b mb-4">
                             <button 
-                                onClick={handleSave}
-                                disabled={!inputValue}
-                                className={`px-4 py-2 text-white rounded transition-colors ${!inputValue ? 'bg-gray-300 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'}`}
+                                className={`px-4 py-2 font-medium text-sm ${!isAdminMode ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-500'}`}
+                                onClick={() => setIsAdminMode(false)}
                             >
-                                認証して保存
+                                利用者ログイン
+                            </button>
+                            <button 
+                                className={`px-4 py-2 font-medium text-sm ${isAdminMode ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-500'}`}
+                                onClick={() => setIsAdminMode(true)}
+                            >
+                                管理者設定
                             </button>
                         </div>
+
+                        {!isAdminMode ? (
+                            <>
+                                <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
+                                    <i className="ph ph-lock-key text-blue-600"></i>
+                                    認証
+                                </h3>
+                                <p className="text-sm text-gray-600 mb-4">
+                                    利用を開始するには、<strong>共有パスワード</strong>を入力してください。<br/>
+                                    <span className="text-xs text-gray-400">※管理者から配布されたパスワード（例: mdata2025）</span>
+                                </p>
+                                
+                                <input
+                                    type="password"
+                                    value={inputValue}
+                                    onChange={(e) => setInputValue(e.target.value)}
+                                    placeholder="パスワード"
+                                    className="w-full border rounded p-3 mb-2 focus:ring-2 focus:ring-blue-500 outline-none"
+                                    onKeyDown={(e) => e.key === 'Enter' && handleSave()}
+                                />
+                                
+                                {errorMsg && (
+                                    <p className="text-red-500 text-xs mb-4 flex items-center gap-1">
+                                        <i className="ph ph-warning-circle"></i> {errorMsg}
+                                    </p>
+                                )}
+
+                                <div className="flex justify-end gap-2 mt-4">
+                                    <button onClick={onClose} className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded">キャンセル</button>
+                                    <button 
+                                        onClick={handleSave}
+                                        disabled={!inputValue}
+                                        className={`px-4 py-2 text-white rounded transition-colors ${!inputValue ? 'bg-gray-300 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'}`}
+                                    >
+                                        認証して保存
+                                    </button>
+                                </div>
+                            </>
+                        ) : (
+                            <>
+                                <h3 className="text-lg font-bold mb-2 flex items-center gap-2">
+                                    <i className="ph ph-code text-indigo-600"></i>
+                                    暗号化コード生成
+                                </h3>
+                                <p className="text-xs text-gray-600 mb-4 bg-yellow-50 p-2 rounded border border-yellow-200">
+                                    HTMLファイルに埋め込むための暗号化済み文字列を生成します。<br/>
+                                    <strong>注意:</strong> ここで入力したAPIキーは外部には送信されません。
+                                </p>
+                                
+                                <label className="block text-xs font-bold text-gray-700 mb-1">新しいAPIキー (AIza...)</label>
+                                <input
+                                    type="password"
+                                    value={rawKeyInput}
+                                    onChange={(e) => setRawKeyInput(e.target.value)}
+                                    placeholder="Google AI Studioで取得したキー"
+                                    className="w-full border rounded p-2 mb-3 text-sm"
+                                />
+                                
+                                <button 
+                                    onClick={handleGenerateEncrypted}
+                                    className="w-full bg-indigo-600 text-white text-xs font-bold py-2 rounded hover:bg-indigo-700 mb-4"
+                                >
+                                    暗号化文字列を生成
+                                </button>
+
+                                {generatedString && (
+                                    <div className="bg-gray-100 p-3 rounded border border-gray-300">
+                                        <p className="text-xs font-bold text-gray-700 mb-1">生成されたコード:</p>
+                                        <textarea 
+                                            readOnly
+                                            className="w-full h-20 text-xs font-mono break-all border p-1 bg-white resize-none"
+                                            value={generatedString}
+                                            onClick={(e) => e.target.select()}
+                                        />
+                                        <p className="text-[10px] text-gray-500 mt-1">
+                                            ↑これをコピーして、HTMLファイル内の <code>const ENCRYPTED_API_KEY = "";</code> の中に貼り付けてください。
+                                        </p>
+                                    </div>
+                                )}
+                                
+                                <div className="flex justify-end gap-2 mt-4 pt-2 border-t">
+                                    <button onClick={onClose} className="px-4 py-2 text-xs text-gray-600 hover:bg-gray-100 rounded">閉じる</button>
+                                </div>
+                            </>
+                        )}
                         
-                        <div className="mt-4 pt-4 border-t text-xs text-gray-500">
-                             <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noreferrer" className="text-blue-500 hover:underline flex items-center gap-1">
-                                <i className="ph ph-arrow-square-out"></i> 自分でAPIキーを取得する場合 (Google AI Studio)
-                             </a>
-                        </div>
+                        {!isAdminMode && (
+                            <div className="mt-4 pt-4 border-t text-xs text-gray-500">
+                                <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noreferrer" className="text-blue-500 hover:underline flex items-center gap-1">
+                                    <i className="ph ph-arrow-square-out"></i> APIキーを直接入力する場合 (Google AI Studio)
+                                </a>
+                            </div>
+                        )}
                     </div>
                 </div>
             );
@@ -534,6 +618,7 @@
 
             // --- GEMINI API LOGIC ---
             const callGeminiAPI = async (query, isTool = false) => {
+                // Changed model to gemini-2.0-flash
                 const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
                 
                 // Context Construction
@@ -684,7 +769,7 @@ ${isTool ? "6. ツール実行モードです。ユーザーの指示に従い�
                                             handleSubmit(e);
                                         }
                                     }}
-                                    placeholder={activeTool ? "条件を入力してください..." : (apiKey ? "Geminiが分析します。質問を入力してください..." : "キーワードを入力してください（認証未完了）...")}
+                                    placeholder={activeTool ? "条件を入力してください..." : (apiKey ? "Geminiが分析します。質問を入力してください..." : "キーワードを入力してください（APIキー未設定）...")}
                                     className={`w-full bg-gray-100 text-gray-800 rounded-xl pl-4 pr-12 py-4 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all resize-none shadow-inner ${activeTool ? 'border-2 border-indigo-200 bg-indigo-50' : ''}`}
                                     rows="1"
                                     style={{minHeight: '60px'}}
@@ -703,9 +788,7 @@ ${isTool ? "6. ツール実行モードです。ユーザーの指示に従い�
                                         <span className="text-indigo-600 flex items-center justify-center gap-1 font-bold"><i className="ph ph-sparkle"></i> AIツール実行モード: 入力待ち</span> :
                                         <span className="text-green-600 flex items-center justify-center gap-1"><i className="ph ph-check-circle"></i> Gemini API 連携中</span>
                                     ) : 
-                                    <span className="text-orange-500 flex items-center justify-center gap-1 cursor-pointer hover:underline" onClick={() => setIsSettingsOpen(true)}>
-                                        <i className="ph ph-warning-circle"></i> 認証未完了: クリックしてパスワードを入力
-                                    </span>
+                                    <span className="text-orange-500 flex items-center justify-center gap-1"><i className="ph ph-warning-circle"></i> APIキー未設定: ローカルモードで動作中</span>
                                 }
                             </p>
                         </div>
@@ -717,8 +800,14 @@ ${isTool ? "6. ツール実行モードです。ユーザーの指示に従い�
         const App = () => {
             const [isSettingsOpen, setIsSettingsOpen] = React.useState(false);
             
-            // Initialize from localStorage
+            // Initialize from localStorage and URL Parameters
             const [apiKey, setApiKey] = React.useState(() => {
+                // 1. Check URL parameters
+                const params = new URLSearchParams(window.location.search);
+                const urlKey = params.get('apikey');
+                if (urlKey) return urlKey;
+
+                // 2. Check LocalStorage
                 try {
                     return localStorage.getItem('tv_meta_api_key') || '';
                 } catch (e) {
