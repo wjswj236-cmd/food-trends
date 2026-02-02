@@ -4,13 +4,30 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>トレンド検知AIエージェント (Gemini Powered)</title>
-    <!-- Tailwind CSS -->
-    <script src="https://cdn.tailwindcss.com"></script>
     <!-- React & ReactDOM -->
     <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
     <!-- Babel -->
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class', // クラスベースでダークモードを制御
+            theme: {
+                extend: {
+                    colors: {
+                        dark: {
+                            bg: '#131314',      // メイン背景
+                            surface: '#1e1f20', // サイドバー、検索窓、カード背景
+                            border: '#3c4043',
+                            text: '#e8eaed'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
     <!-- Phosphor Icons -->
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
     <!-- Google Fonts -->
@@ -23,8 +40,33 @@
     <style>
         body {
             font-family: 'Noto Sans JP', sans-serif;
-            background-color: #f3f4f6;
+            transition: background-color 0.3s ease;
         }
+        
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1; 
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8; 
+        }
+        
+        /* Dark Mode Scrollbar Override */
+        .dark ::-webkit-scrollbar-thumb {
+            background: #4a4a4a;
+        }
+        .dark ::-webkit-scrollbar-thumb:hover {
+            background: #606060;
+        }
+
         .scrollbar-hide::-webkit-scrollbar {
             display: none;
         }
@@ -32,6 +74,7 @@
             -ms-overflow-style: none;
             scrollbar-width: none;
         }
+        
         .typing-dot {
             animation: typing 1.4s infinite ease-in-out both;
         }
@@ -43,18 +86,18 @@
             40% { transform: scale(1); }
         }
         
-        /* Message Markdown Styles */
+        /* Markdown Styles */
         .prose h3 {
             font-size: 1.1rem;
             font-weight: 700;
             margin-top: 1rem;
             margin-bottom: 0.5rem;
-            color: #1f2937;
+            color: inherit;
         }
         .prose p {
             margin-bottom: 0.75rem;
             line-height: 1.6;
-            color: #374151;
+            color: inherit;
         }
         .prose ul {
             list-style-type: disc;
@@ -65,14 +108,15 @@
             margin-bottom: 0.25rem;
         }
         .prose strong {
-            color: #111827;
+            color: inherit;
             font-weight: 700;
         }
         .prose blockquote {
             border-left: 4px solid #e5e7eb;
             padding-left: 1rem;
             font-style: italic;
-            color: #4b5563;
+            opacity: 0.8;
+            margin-bottom: 1rem;
         }
         .prose table {
             width: 100%;
@@ -84,30 +128,30 @@
             padding: 0.5rem;
             text-align: left;
         }
-        .prose th {
-            background-color: #f9fafb;
-            font-weight: 600;
+
+        /* Dark Mode Markdown Overrides */
+        .dark .prose blockquote {
+            border-left-color: #4a4a4a;
+        }
+        .dark .prose th, .dark .prose td {
+            border-color: #3c4043;
         }
     </style>
 </head>
-<body>
+<body class="bg-gray-50 dark:bg-dark-bg text-gray-900 dark:text-gray-100">
     <div id="root"></div>
 
     <script type="text/babel">
         // --- SECURITY CONFIG ---
-        
+
         // 【重要】設定手順:
         // 1. このファイルをブラウザで開き、左下の設定(⚙️) > 「管理者設定」タブをクリック
         // 2. あなたのAPIキーと、任意の「パスワード」を入力して「暗号化文字列」を生成する
         // 3. 生成された文字列をコピーし、下の ENCRYPTED_API_KEY の "" の中に貼り付けて保存する
-        // 4. パスワードはコードに書かず、利用者へ別途共有してください。
         
-        // ▼ここに生成した暗号化文字列を貼り付けます
-        const ENCRYPTED_API_KEY = "U2FsdGVkX1+OKVenqD0+yTjAIbsP6b/bA9i5YKcoxvCATMuV/kJ2L2qRY3d4VSEJRAoG/terArexcedCH9O+MA=="; 
-        
-        // (旧仕様の SHARED_PASSWORD は削除しました。パスワードはコードに含めません)
+        const ENCRYPTED_API_KEY = "U2FsdGVkX19XQ28QtS/AABW9TSu8EdDxhtLvJ6d4CNMJQXQTZN7W1gYNTB90yrCk48aEr1QHB6CzpQjKQNyxEw=="; 
 
-        // --- DATASET (90 items) ---
+        // --- DATASET (Same as before) ---
         const MOCK_DATA = [
             { date: "2025/10/1", station: "TBS", program: "ひるおび", headline: "＜ひるトピ＞健康志向で食べる人が増加「おはぎ」", summary: "健康志向で食べる人が増加している「おはぎ」を紹介。おはぎは糖質、タンパク質、ビタミン、ミネラルなど栄養価が高いスーパーフード。見た目華やか、健康志向のものなど近年バリエーションが豊富で腸活やダイエットでも注目されており、お彼岸関係なく日頃から食べている人が増えており、専門店も増加しているという。東京・巣鴨【店舗】「とげぬき福寿庵」の【商品】「こぼれるおはぎ」を紹介。三重県にある創業４００年以上の【店舗】「桔梗屋織居」の新ブランドとして誕生した東京・駒沢【店舗】「ＫＩＫＹＯＹＡＯＲＩＩ－ｓｉｎｃｅ１６０７－」の【商品】「古代米のおはぎ」を紹介。東京・代官山【店舗】「の・はぎ」の【商品】「すべての・はぎ」、【商品】「屋久島たんかんの・はぎ」、【商品】「三椒の・はぎ」を紹介。【コメント】土井征哉（とげぬき福寿庵・総支配人）、中村弓哉（ＫＩＫＹＯＹＡＯＲＩＩ・店主）、宇野耕平（の・はぎ・オーナー）【コメント文】植草真奈美（管理栄養士）、安井友梨（ビキニフィットネスアスリート）【声の出演】伊藤隆太（アナウンサー）【解説・コメンテーター】水野真紀、杉浦太陽", sceneId: "468966376", theme: "進化系おはぎ", genre: "和菓子, スイーツ, 健康食", tags: "腸活, スーパーフード, 雑穀, 専門店, 手土産", explanation: "健康志向の高まりを背景に、栄養価の高いスーパーフードとして「おはぎ」を日常的に食べる人が増加している。古代米や雑穀を使用したもの、見た目が華やかなものなどバリエーションが豊富になり、専門店も続々とオープンしている。" },
             { date: "2025/10/1", station: "NTV", program: "ＺＩＰ！", headline: "＜ＮＥＷＳＺＩＰ！リポート＞１０月・３０００品目超が値上げ・冷凍食品のまとめ買い需要高まる", summary: "１０月から３０００品目超が値上げされる。続く物価高の中、冷凍食品が人気になりセカンド冷凍庫に注目が集まっている。アイリスオーヤマによると大容量でボディーがスリムな冷凍庫が人気。東京有楽町の映像。【コメント】葦原崇（ビックカメラ有楽町店・家電担当）【資料・協力】アイリスオーヤマ", sceneId: "468964759", theme: "冷凍食品まとめ買い＆セカンド冷凍庫", genre: "家電, ライフスタイル, 冷凍食品", tags: "物価高対策, ストック需要, スリム家電, 大容量, 節約", explanation: "10月の食品値上げや続く物価高を背景に、冷凍食品のまとめ買い需要が高まっている。これに伴い、家庭での保存容量を増やすための「セカンド冷凍庫」に注目が集まっており、特に大容量かつスリムなモデルが人気を博している。" },
@@ -121,7 +165,7 @@
             { date: "2025/10/3", station: "NTV", program: "ＺＩＰ！", headline: "＜？よみトク！＞マツタケシーズン到来・ブータン産が人気上昇", summary: "１０月に入り、マツタケが旬を迎えている。国産の半額以下で買える手頃なブータン産のマツタケの人気が上昇している。長野県豊丘村【施設】「道の駅南信州とよおかマルシェ」を取材。１パック約３８００円からで１本１万を超えるものもあった。猛暑・少雨で生育に遅れがあった。長野県上田市の初競りでは１キロ６万～１２万円と例年の１．５倍の値がつけられた。ブータン産のマツタケは大阪・関西万博の会場内でも販売されていた。【商品】「ブータン産マツタケ（１５０ｇ）」は９３５０円。ブータン国内では需要が低いため価格が安い。東京西麻布【施設】「西麻布ワールドネイチャーファーム」を取材。スタジオでマツタケご飯を試食。【ゲスト】猪俣周杜（ｔｉｍｅｌｅｓｚ）、篠塚大輝（ｔｉｍｅｌｅｓｚ）【コメント】植山宏哉（西麻布ワールドネイチャーファーム・オーナー）【資料・協力】ブータン松茸ＳＨＯＰ公式ユーチューブ", sceneId: "468994036", theme: "ブータン産マツタケ", genre: "食材, 旬の食材, きのこ", tags: "代替食材, コスパ, 秋の味覚, 猛暑影響, 産地多様化", explanation: "国産マツタケが猛暑や少雨の影響で高騰する中、安価なブータン産マツタケの人気が急上昇している。国産の半額以下で購入できる手頃さと、現地の需要が低いため供給が安定している点が魅力で、万博会場でも販売されるなど注目されている。" },
             { date: "2025/10/3", station: "EX", program: "グッド！モーニング", headline: "＜きょう注目ＮＥＷＳ＞抹茶ブームに続き・英国でほうじ茶人気", summary: "紅茶の国・英国ロンドンでＺ世代を中心に抹茶が大ブームとなっている。英国への緑茶の輸出量は２０２３年から比べ２．９倍。２０２５年は半年過ぎた時点で２０２４年を上回っている。抹茶の入手困難となる中、新たに注目されているのがほうじ茶。英国で２０２３年からほうじ茶を提供している日本茶専門店の注文数は２０２４年と比べ１．５倍に増えた。抹茶とほうじ茶は緑茶に分類されうが製造方法が違うという。英国発の「ほうじ茶ドリンク」を試飲。【商品】「ＳＡＩＣＨＯ」は静岡県産茶葉とブドウ果汁を合わせたもの。【資料・協力】財務省「貿易統計」【コメント】立田祥久、クラウディアボイヤー（日本茶専門店ＪＥＮＫＩ・共同代表）、リサハリス（飲食コンサルタント）", sceneId: "468992733", theme: "英国でほうじ茶ブーム", genre: "飲料, 茶", tags: "逆輸入, Z世代, 日本茶, 代替需要, カフェ", explanation: "英国ロンドンでZ世代を中心に抹茶ブームが起きる中、ネクストトレンドとして「ほうじ茶」が注目されている。抹茶の品薄や高騰も影響し、香ばしい風味を持つ新しい日本茶として需要が拡大。現地専門店での注文数が増加している。" },
             { date: "2025/10/5", station: "NTV", program: "一茂×かまいたちゲンバ", headline: "専門店が急増・流行のビリヤニ", summary: "コロナ禍以降、レシピのマンネリ化対策でスパイスを使う人が増加した。【飲食店】「エリックサウスマサラダイナー」を訪問。食べログの「アジア・エスニックＴＯＫＹＯ２０２４百名店」に選ばれた。全国１３店舗を展開。【商品】セブンイレブン「ビリヤニバスマティ米使用」を監修した。ビリヤニは１６世紀頃インドに伝わった宮廷料理。【施設】「東京駅」にある【飲食店】「カレー＆ビリヤニニルヴァーナＴｏｋｙｏ」、北千住【飲食店】「ビリヤニ食堂」、高田馬場【飲食店】「ビリヤニトウキョウ」などビリヤニ専門店が急増している。【店舗】「カルディコーヒーファーム」や【店舗】「成城石井」でもビリヤニの商品が販売されている。【飲食店】「だし尾粂麻布台ヒルズ店」、【店舗】「Ｌｅｏｎａｒｄ’ｓ」についてコメント。「自家製スパイシージンジャーエール」、「チキンビリヤニプレート」、「マトンビリヤニプレート」を味わった。【コメント】結城啓介（エリックサウスマサラダイナー・店長（商品開発部リーダー））【資料・協力】ＡＦＰ／アフロ、ＴｒａｖｉｓＰｈｏｔｏＷｏｒｋｓ／シャッターストック", sceneId: "469020257", theme: "本格ビリヤニ", genre: "カレー, 米料理, インド料理", tags: "スパイス, バスマティライス, 専門店, コンビニ飯, ガチ勢", explanation: "コロナ禍以降のスパイス需要の定着を経て、インドの炊き込みご飯「ビリヤニ」の専門店が急増している。コンビニや高級スーパーでも関連商品が販売されるなど、マニア向けから一般層へ認知が拡大。本格的なバスマティライスを使用した商品が増えている。" },
-            { date: "2025/10/6", station: "TBS", program: "ＴＨＥＴＩＭＥ，", headline: "＜ＴＩＭＥマーケティング部＞２０２５年注目のサカナ", summary: "業界誌「水産界」に聞いた２０２５年注目のサカナを紹介。フグの女王と呼ばれるマフグは海水温の上昇で北上しており、２０１９年から北海道が漁獲量で日本一になり、２０２３年には総漁獲量が５年前と比べて約２倍に増えている。【ランキング】（２０１９年都道府県別フグ類の漁獲量）１位・北海道、２位・石川県、３位・宮崎県、４位・山口県、５位・新潟県■（２０２３年都道府県別フグ類の漁獲量）１位・北海道、２位・石川県、３位・新潟県、４位・愛知県、５位・山口県。【飲食店】「寿司活ジョイナス横浜店」の「北海道産真ふぐの炙り」は、毎月５０００皿以上出る人気商品となっている。【飲食店】「かっぱ寿司秋葉原万世橋店」の「北海道産フグ塩炙りポン酢ジュレのせ」、【飲食店】「しゃぶしゃぶ温野菜田町三田口店」の「さっぱりしゃぶしゃぶ夏ふぐ」を昇格。一方、海洋環境の変化によってサバの漁獲量が５年で半減している。そこでサバの養殖が注目されているという。鳥取県岩美町で陸上養殖されているサバ「さばみちゃん」を紹介。海中では寄生虫のリスクがあるが、地下海水を使用することで解消しているという。【飲食店】「お食事処あじろや」の「さばみちゃん定食」を紹介。【施設】「道の駅きなんせ岩美」で販売されている地元の特産品の廃棄部分を「さばみちゃん」のエサに再利用しており、天然のサバよりＥＰＡとＤＨＡが豊富となっている。【コメント】内堀湧太（大日本水産会・漁政部）、吉川直人（活美登利・仕入れ担当）、一柳遥（レインズインターナショナル・広報）、田島大介（タシマボーリング・代表取締役）、田島みよ、橋尾佳那【出演】原千晶（元テレビ山口アナウンサー）【資料・協力】ゲッティイメージズ", sceneId: "469031131", theme: "北海道産マフグ", genre: "魚介, 寿司, 鍋", tags: "海洋環境変化, 代替魚種, コスパ, 漁獲増, ご当地食材", explanation: "海水温上昇により生息域が北上した「マフグ」が、北海道での漁獲量を急増させている。トラフグに次ぐ美味しさから「フグの女王」とも呼ばれ、回転寿司やしゃぶしゃぶチェーンでの採用が増加。環境変化を逆手に取った新たな水産資源として注目されている。" },
+            { date: "2025/10/6", station: "TBS", program: "ＴＨＥＴＩＭＥ，", headline: "＜ＴＩＭＥマーケティング部＞２０２５年注目のサカナ", summary: "業界誌「水産界」に聞いた２０２５年注目のサカナを紹介。フグの女王と呼ばれるマフグは海水温の上昇で北上しており、２０１９年から北海道が漁獲量で日本一になり、２０２３年には総漁獲量が５年前と比べて約２倍に増えている。【ランキング】（２０十九年都道府県別フグ類の漁獲量）１位・北海道、２位・石川県、３位・宮崎県、４位・山口県、５位・新潟県■（２０２３年都道府県別フグ類の漁獲量）１位・北海道、２位・石川県、３位・新潟県、４位・愛知県、５位・山口県。【飲食店】「寿司活ジョイナス横浜店」の「北海道産真ふぐの炙り」は、毎月５０００皿以上出る人気商品となっている。【飲食店】「かっぱ寿司秋葉原万世橋店」の「北海道産フグ塩炙りポン酢ジュレのせ」、【飲食店】「しゃぶしゃぶ温野菜田町三田口店」の「さっぱりしゃぶしゃぶ夏ふぐ」を昇格。一方、海洋環境の変化によってサバの漁獲量が５年で半減している。そこでサバの養殖が注目されているという。鳥取県岩美町で陸上養殖されているサバ「さばみちゃん」を紹介。海中では寄生虫のリスクがあるが、地下海水を使用することで解消しているという。【飲食店】「お食事処あじろや」の「さばみちゃん定食」を紹介。【施設】「道の駅きなんせ岩美」で販売されている地元の特産品の廃棄部分を「さばみちゃん」のエサに再利用しており、天然のサバよりＥＰＡとＤＨＡが豊富となっている。【コメント】内堀湧太（大日本水産会・漁政部）、吉川直人（活美登利・仕入れ担当）、一柳遥（レインズインターナショナル・広報）、田島大介（タシマボーリング・代表取締役）、田島みよ、橋尾佳那【出演】原千晶（元テレビ山口アナウンサー）【資料・協力】ゲッティイメージズ", sceneId: "469031131", theme: "北海道産マフグ", genre: "魚介, 寿司, 鍋", tags: "海洋環境変化, 代替魚種, コスパ, 漁獲増, ご当地食材", explanation: "海水温上昇により生息域が北上した「マフグ」が、北海道での漁獲量を急増させている。トラフグに次ぐ美味しさから「フグの女王」とも呼ばれ、回転寿司やしゃぶしゃぶチェーンでの採用が増加。環境変化を逆手に取った新たな水産資源として注目されている。" },
             { date: "2025/10/7", station: "TBS", program: "Ｎスタ", headline: "＜秒スタ＞ヨーグルト・３年で２２円値上がり", summary: "ヨーグルトの全国平均価格は、約１３８円から１６０円となり、３年で２２円アップしている。価格アップの背景にはコスト上昇がある。人気上昇中なのがグリークヨーグルト（ギリシャヨーグルト）。一般的なヨーグルトより濃厚でクリーミーな食感が特徴。ギリシャヨーグルト国内市場規模は１８３億円。東京渋谷区【飲食店】「Ｂｏｗｌｓ＃」の「オリジナルボウル」を紹介。【商品】貝印「グリークヨーグルトメーカー」は、水切り量から好みの固さに調節可能。【資料・協力】日経電子版、富士経済", sceneId: "469048841", theme: "グリークヨーグルト（ギリシャヨーグルト）", genre: "乳製品, スイーツ, 健康食", tags: "高タンパク, 濃厚食感, 市場拡大, おうちカフェ, ヘルシー", explanation: "一般的なヨーグルトより濃厚でクリーミーな食感が特徴の「グリークヨーグルト」の人気が上昇中である。国内市場規模は183億円に達し、家庭で手軽に作れるメーカー器具も販売されている。高タンパクで満足感が高く、健康食品として定着しつつある。" },
             { date: "2025/10/8", station: "NTV", program: "ＺＩＰ！", headline: "＜ＺＩＰ！特集＞気がつけばアボカド・人気の万能食材", summary: "気がつけば人気になっていた万能食材・アボカドを徹底調査。「アボカドナス麻婆」のレシピを紹介。アボカドは火を入れ過ぎると苦みが出るため、４０～５０秒の加熱がオススメ。【ゲスト】ゆうちゃみ（古川優奈）、緑川鮎香（アボカド料理研究家・管理栄養士）", sceneId: "469055995", theme: "アボカド人気", genre: "食材, 野菜, 料理", tags: "万能食材, レシピ, 美容, 定番化, 加熱調理", explanation: "「気がつけば人気になっていた」と言われるほど、アボカドが万能食材として食卓に定着している。生食だけでなく、加熱調理によるレシピ（麻婆など）も提案されており、栄養価の高さと使い勝手の良さから継続的な支持を得ている。" },
             { date: "2025/10/8", station: "TBS", program: "ＴＨＥＴＩＭＥ’", headline: "＜ＴＩＭＥレポート＞さつまいも「ねっとりｏｒホクホク」", summary: "ねっとり系の焼き芋とホクホク系の焼き芋、どちらが好きかを調査。東京浅草にある【店舗】「焼き芋専門店芋やす浅草店」の【商品】「紅はるか」、【商品】「すずほっくり」を紹介。週４日お店に通うという常連の男性はねっとり系の【商品】「紅はるか」を購入した。この店には外国人観光客も多く訪れ、ねっとり系の焼き芋が人気だという。２日間の調査の結果、ねっとり系は６９個、ホクホク系は１２個売れた。神奈川県横浜市の【施設】「川戸農園」ではさつまいも掘り体験が楽しめる。また、ここで味わえる焼き芋は種類が多く、食感や甘さの度合いが一目で分かるチャートが独自に作成されている。【商品】「紅はるか」、【商品】「安納芋」、【商品】「栗かぐや」、【商品】「ふくむらさき」など７種類から選べるという。農園の方おすすめのさつまいもレシピを紹介。【声の出演】よしいよしこ【コメント】川戸佳菜子（川戸農園）", sceneId: "469053742", theme: "ねっとり系焼き芋", genre: "スイーツ, 野菜", tags: "紅はるか, 専門店, インバウンド, 食べ比べ, 食感", explanation: "焼き芋のトレンドにおいて、従来の「ホクホク系」から、糖度が高くスイーツのような「ねっとり系」への嗜好シフトが鮮明になっている。専門店では「紅はるか」などが圧倒的な支持を得ており、外国人観光客の需要も取り込んでいる。" },
@@ -159,7 +203,7 @@
             { date: "2025/10/20", station: "EX", program: "スーパーＪチャンネル", headline: "シイタケ狩りが大盛況・深まる秋・「きのこ鍋」大人気", summary: "２０２５年はキノコが豊作。東京表参道【飲食店】「シャングリラズシークレット表参道店」の美楽コースを紹介。埼玉県横瀬町【施設】「小松沢レジャー農園」ではしいたけ狩りが楽しめる。「溶岩プレート」を紹介。収穫量は１５％～２０％増えているという。黒舞茸やえのきなど、きのこは全般的に安い。極端に高くなるのは１２月後半。東京練馬区の映像。【コメント】平山卓也（シャングリラズシークレット表参道店）、松田和秀、町田裕（小松沢レジャー農園）、秋葉弘道（アキダイ・社長）", sceneId: "469215335", theme: "きのこ鍋＆きのこ狩り", genre: "野菜, 鍋", tags: "豊作, コスパ, 秋の味覚, 健康食, レジャー", explanation: "2025年はキノコが豊作で価格が安定しており、他の野菜が高騰する中で「優等生」として消費が拡大している。安価なキノコをたっぷり使った鍋料理や、レジャーとしてのキノコ狩りが盛況。" },
             { date: "2025/10/21", station: "NTV", program: "ｎｅｗｓｅｖｅｒｙ．", headline: "油そば店が急増・「汁なし麺」人気に", summary: "ラーメン店の倒産が相次ぐ中、汁なしの油そばの店が急増している。物価高を背景にした意外な背景があった。神奈川県横須賀市の【飲食店】「油そば専門店麺と油」を紹介。横浜市の【飲食店】「油そば専門店ぶらぶら横浜本店」によると、スープがない分カロリーはラーメンの３分の２ほどだという。油そば・まぜそばの店舗数は２０２０年１０月に３２３店舗だったが、１０月には６８４店舗と２倍に拡大している。汁なし麺の人気は食卓にも広がっている。東京江東区の【店舗】「コモディイイダ西端江店」では、冷凍やカップ麺コーナーに汁なし麺が販売。冷凍の【商品】「汁なし担々麺」は２０２４年と比べて売上げが２倍以上だという。カップ麺の油そばも売上げが約１．５倍だという。【商品】「ぶぶか油そば」を紹介。【飲食店】「油そば専門店麺と油」は鶏油と豚油の２種類から選べる油そば専門店。２０２４年１１月まではとんこつラーメン屋を経営していたという。「とんこつラーメン」、「油そば」を紹介。スープを炊かなくなったのと、手間や人件費をカットできて、１か月３０万円前後はコストをカットできたという。ドリンク飲み放題で客に還元しているという。【コメント】関谷英展（油そば専門店ぶらぶら横浜本店・代表）、大塩隆一（コモディイイダ・ＳＶ統括部長）、工藤拓也（油そば専門店麺と油・代表）【資料・協力】食べログ", sceneId: "469227210", theme: "汁なし麺（油そば・まぜそば）", genre: "麺類, 冷凍食品", tags: "コスト削減, 低カロリー, コメ代替, 冷凍食品, 経営戦略", explanation: "ラーメン店からの業態転換や新規出店により、油そば・まぜそば店が5年で倍増。光熱費や人件費を抑制できるビジネスモデルとして注目されるほか、スープがない分の低カロリー訴求や、家庭用冷凍食品の売上倍増など、内外食共に市場が拡大している。" },
             { date: "2025/10/21", station: "CX", program: "ＬｉｖｅＮｅｗｓイット！", headline: "寒くなったら食べたい「辛～い鍋」・２０２５年のトレンド「アロマ鍋」って？", summary: "寒い日に食べたい鍋料理。２０２５年のトレンド鍋を調査した。東京港区【飲食店】「赤い壺」では漢方８種類以上、唐辛子１０種類以上が入った鍋が味わえる。マイルドなスープに辛さを足していくこともできる。ぐるなびが発表した２０２５年のトレンド鍋はアロマ鍋。ハーブやスパイスなどを使ってうまみと合わせ香りも楽しめる五感で味わう鍋のこと。ハーブの検索数は１年で約１．７倍に増加。健康志向の高まりなどから香辛料市場が拡大している。埼玉県日高市【店舗】「ベイシアひだかモール店」では１００種類以上を取りそろえ、９月からコーナーを拡大したという。東京渋谷区、「薬膳きのこもつ火鍋」の映像。【コメント】原崎はるか、奥野恭佳【資料・協力】ぐるなび", sceneId: "469226700", theme: "アロマ鍋", genre: "鍋, 外食, 野菜", tags: "ハーブ, スパイス, 香り, 健康志向, 五感", explanation: "ぐるなびが2025年のトレンドとして発表した、ハーブやスパイスの香りを生かした鍋料理。健康志向の高まりで香辛料市場が拡大しており、うま味だけでなく「香り」も楽しむ五感体験が重視されている。" },
-            { date: "2025/10/21", station: "EX", program: "グッド！モーニング", headline: "＜もっと知りたい！ＮＥＷＳ＞健康志向で豆乳ブーム再び", summary: "健康志向の高まりを背景に豆乳ブームが再び広がっている。東京練馬区にあるソイラテ専門店【飲食店】「ＫｏｍａｄｏＣａｆｅ」を取材。「ほうじ茶ソイラテＨＯＴ」を紹介。無調整豆乳と調製調乳の２種類に分けられる。日本豆乳協会によると２０２４年の豆乳生産量は２０２３年にと比べ３．１％増えている。中でも無調整豆乳の生産量は過去最高となっている。キッコーマンでは豆乳製品を４３種展開している。東京港区の映像。【コメント】番匠ひな、亀井淳一（キッコーマンソイフーズマーケティング推進部・部長）【資料・協力】日本豆乳協会、キッコーマンソイフーズ", sceneId: "469221094", theme: "豆乳ブーム再燃", genre: "飲料, 健康食, 乳製品代替", tags: "健康志向, 植物性ミルク, 専門店, カフェ, リバイバル", explanation: "健康志向の高まりを背景に、豆乳ブームが再燃している。特に無調整豆乳の生産量は過去最高を記録。ソイラテ専門店の登場や、メーカーによる商品ラインナップ拡充など、日常的な健康飲料としての定着が進んでいる。" },
+            { date: "2025/10/21", station: "EX", program: "グッド！モーニング", headline: "＜もっと知りたい！ＮＥＷＳ＞健康志向で豆乳ブーム再び", summary: "健康志向の高まりを背景に豆乳ブームが再び広がっている。東京練馬区にあるソイラテ専門店【飲食店】「ＫｏｍａｄｏＣａｆｅ」を取材。「ほうじ茶ソイラテＨＯＴ」を紹介。無調整豆乳と調製調乳の２種類に分けられる。日本豆乳協会によると２０２４年の豆乳生産量は２０２３年にと比べ３．１％増えている。中でも無調整豆乳の生産量は過去最高となっている。キッコーマンでは豆乳製品を４３種展開している。東京港区の映像。【コメント】番匠ひな、亀井淳一（キッコーマンソイフーズマーケティング推進部・部長）【資料・協力】日本豆乳協会、キッコーマンソイフーズ", sceneId: "469221094", theme: "豆乳ブーム再燃", genre: "飲料, 健康食, 乳製品代替", tags: "健康志向, 植物性ミルク, 専門店, カフェ, リバイバル", explanation: "健康志向の高まりを背景に、豆乳ブームが再燃している。特に無調整豆乳の生産量は過去最高を記録。ソイラテ専門店の登場や、メーカーによる商品ラインナップ拡充など、日常的に健康飲料としての定着が進んでいる。" },
             { date: "2025/10/21", station: "EX", program: "スーパーＪチャンネル", headline: "＜ｎｅｗｓＢＯＸ＞”あの高級魚”・回転ずし定番に", summary: "最近ではフグが回転寿司店でも身近な値段で食べられると大人気。【飲食店】「寿司活」では１カ月５０００皿以上を売り上げる人気商品。１０月解禁されたフグ漁でも大量に水揚げされていた。飲食店などが除毒済みのフグを扱う際、自治体への届け出が不要になった。【飲食店】「寿司活ジョイナス横浜店」、福島県相馬市の映像。【コメント】吉川直人（活美登利購買管理課）", sceneId: "469226900", theme: "回転寿司のフグ", genre: "寿司, 魚介, 外食", tags: "高級魚, コスパ, 規制緩和, 漁獲増, 大衆化", explanation: "かつての高級魚フグが、漁獲量の増加や自治体への届け出不要といった規制緩和を背景に、回転寿司の定番ネタとして大衆化している。手頃な価格で食べられるようになり、月5000皿以上売れる店舗も出るなど人気を博している。" },
             { date: "2025/10/22", station: "NTV", program: "Ｏｈａ！４ＮＥＷＳＬＩＶＥ", headline: "＜コレミテ＞油そば専門店が急増のワケ", summary: "汁なし麺の専門店が増えているワケを取材。神奈川県横須賀市の【飲食店】「油そば専門店麺と油」を紹介。横浜市の【飲食店】「油そば専門店ぶらぶら横浜本店」によると、スープがない分カロリーはラーメンの３分の２ほどだという。油そば・まぜそばの店舗数は２０２０年１０月に３２３店舗だったが、１０月には６８４店舗と２倍に拡大している。汁なし麺の人気は食卓にも広がっている。東京江東区の【店舗】「コモディイイダ西端江店」では、冷凍やカップ麺コーナーに汁なし麺が販売。冷凍の【商品】「汁なし担々麺」は２０２４年と比べて売上げが２倍以上だという。カップ麺の油そばも売上げが約１．５倍だという。【商品】「ぶぶか油そば」を紹介。【飲食店】「油そば専門店麺と油」は鶏油と豚油の２種類から選べる油そば専門店。２０２４年１１月まではとんこつラーメン屋を経営していたという。「とんこつラーメン」、「油そば」を紹介。スープを炊かなくなったのと、手間や人件費をカットできて、１か月３０万円前後はコストをカットできたという。ドリンク飲み放題で客に還元しているという。【コメント】関谷英展（油そば専門店ぶらぶら横浜本店・代表）、大塩隆一（コモディイイダ・ＳＶ統括部長）、工藤拓也（油そば専門店麺と油・代表）【資料・協力】食べログ", sceneId: "469232215", theme: "汁なし麺（油そば・まぜそば）", genre: "麺類, 外食, 冷凍食品", tags: "コスト削減, 低カロリー, 専門店, 経営戦略, コメ代替", explanation: "ラーメン店の倒産が増える中、スープ不要で光熱費や人件費を抑制できる「油そば」専門店が急増し、店舗数は5年で倍増した。低カロリーという健康面での訴求や、家庭用商品の売上増など、内外食双方で市場が拡大している。" },
             { date: "2025/10/22", station: "NTV", program: "ＺＩＰ！", headline: "＜キテルネ！＞せいろ蒸しのバズりレシピ", summary: "料理ＳＮＳ「スナップディッシュ」の料理ＳＮＳトレンド大賞を２年連続で受賞しているせいろ蒸し。トレンドの「ネオ和食」は伝統的な和食の味つけや調理法を洋風や現代の生活にとり入れやすい形などにアレンジした和食のこと。せいろ蒸しのバズりレシピをリポート。炒めないチャーハン、ひっくり返さないお好み焼き、フレンチトーストのレシピを紹介。【出演】佐々木美玲【告知】キテルネ！のインスタグラムで詳しい商品の情報公開中！＠ｋｉｔｅｒｕｎｅ＿ｚｉｐ【資料・協力】料理ＳＮＳ「スナップディッシュ」、「デリッシュキッチン」２０２５年食の流行予測", sceneId: "469233022", theme: "せいろ蒸し（ネオ和食）", genre: "料理, 調理器具, 和食", tags: "ヘルシー, タイパ, SNS映え, ほったらかし調理, レトロ", explanation: "料理SNSで「せいろ蒸し」がトレンド大賞を受賞するなど、ブームとなっている。伝統的な調理法を現代風にアレンジした「ネオ和食」の一環として、ヘルシーかつ「ほったらかし調理」が可能な点が支持されている。" },
@@ -203,21 +247,20 @@
 
         // --- COMPONENTS ---
 
-        // API Key Input Modal
-        const ApiKeyModal = ({ isOpen, onClose, onSave, currentKey }) => {
+        // ApiKeyModal
+        const ApiKeyModal = ({ isOpen, onClose, onSave, currentKey, theme, setTheme }) => {
             const [inputValue, setInputValue] = React.useState('');
             const [errorMsg, setErrorMsg] = React.useState('');
-            const [isAdminMode, setIsAdminMode] = React.useState(false); // Tab state
+            const [tabMode, setTabMode] = React.useState('login'); // 'login' | 'admin' | 'theme'
             const [rawKeyInput, setRawKeyInput] = React.useState('');
-            const [encPassword, setEncPassword] = React.useState(''); // Password for encryption
+            const [encPassword, setEncPassword] = React.useState('');
             const [generatedString, setGeneratedString] = React.useState('');
 
-            // Reset state when modal opens
             React.useEffect(() => {
                 if (isOpen) {
                     setInputValue('');
                     setErrorMsg('');
-                    setIsAdminMode(false);
+                    setTabMode('login');
                     setRawKeyInput('');
                     setEncPassword('');
                     setGeneratedString('');
@@ -228,164 +271,119 @@
 
             const handleSave = () => {
                 setErrorMsg('');
-                
-                // 1. Try checking against the embedded encrypted key
                 if (ENCRYPTED_API_KEY) {
                     try {
                         const decryptedBytes = CryptoJS.AES.decrypt(ENCRYPTED_API_KEY, inputValue);
                         const decryptedKey = decryptedBytes.toString(CryptoJS.enc.Utf8);
-
                         if (decryptedKey && decryptedKey.startsWith('AIza')) {
                             onSave(decryptedKey);
                             return;
                         }
-                    } catch (e) {
-                        // Decryption failed, likely wrong password
-                    }
+                    } catch (e) { }
                 }
-
-                // 2. Fallback: Check if user entered a raw API key directly
                 if (inputValue.startsWith('AIza')) {
                     onSave(inputValue);
                     return;
                 }
-
                 setErrorMsg('パスワードが正しくありません、または無効なAPIキーです。');
             };
 
             const handleGenerateEncrypted = () => {
-                if (!rawKeyInput.startsWith('AIza')) {
-                    alert('有効なAPIキーを入力してください (AIza...)');
-                    return;
-                }
-                if (!encPassword) {
-                    alert('暗号化に使用するパスワードを入力してください');
-                    return;
-                }
-                const encrypted = CryptoJS.AES.encrypt(rawKeyInput, encPassword).toString();
-                setGeneratedString(encrypted);
+                if (!rawKeyInput.startsWith('AIza')) return alert('有効なAPIキーを入力してください');
+                if (!encPassword) return alert('パスワードを入力してください');
+                setGeneratedString(CryptoJS.AES.encrypt(rawKeyInput, encPassword).toString());
             };
 
             return (
-                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-                    <div className="bg-white rounded-lg p-6 w-full max-w-md shadow-xl">
+                <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
+                    <div className="rounded-lg p-6 w-full max-w-md shadow-2xl transform transition-all bg-white dark:bg-dark-surface dark:border dark:border-dark-border text-gray-800 dark:text-gray-100">
                         
                         {/* Tabs */}
-                        <div className="flex border-b mb-4">
-                            <button 
-                                className={`px-4 py-2 font-medium text-sm ${!isAdminMode ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-500'}`}
-                                onClick={() => setIsAdminMode(false)}
-                            >
-                                利用者ログイン
-                            </button>
-                            <button 
-                                className={`px-4 py-2 font-medium text-sm ${isAdminMode ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-500'}`}
-                                onClick={() => setIsAdminMode(true)}
-                            >
-                                管理者設定
-                            </button>
+                        <div className="flex border-b mb-4 border-gray-200 dark:border-dark-border">
+                            {['login', 'theme', 'admin'].map(mode => (
+                                <button 
+                                    key={mode}
+                                    className={`px-4 py-2 font-medium text-sm transition-colors ${tabMode === mode ? 'border-b-2 border-blue-500 text-blue-500' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'}`}
+                                    onClick={() => setTabMode(mode)}
+                                >
+                                    {mode === 'login' ? '利用者ログイン' : mode === 'theme' ? 'テーマ設定' : '管理者設定'}
+                                </button>
+                            ))}
                         </div>
 
-                        {!isAdminMode ? (
+                        {/* CONTENT: LOGIN */}
+                        {tabMode === 'login' && (
                             <>
                                 <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
-                                    <i className="ph ph-lock-key text-blue-600"></i>
-                                    認証
+                                    <i className="ph ph-lock-key text-blue-500"></i>認証
                                 </h3>
-                                <p className="text-sm text-gray-600 mb-4">
-                                    利用を開始するには、<strong>共有パスワード</strong>を入力してください。<br/>
-                                    <span className="text-xs text-gray-400">※管理者から別途共有されたパスワード</span>
+                                <p className="text-sm mb-4 text-gray-600 dark:text-gray-400">
+                                    共有パスワードを入力してください。<br/>
                                 </p>
-                                
                                 <input
                                     type="password"
                                     value={inputValue}
                                     onChange={(e) => setInputValue(e.target.value)}
                                     placeholder="パスワード"
-                                    className="w-full border rounded p-3 mb-2 focus:ring-2 focus:ring-blue-500 outline-none"
+                                    className="w-full border rounded p-3 mb-2 focus:ring-2 focus:ring-blue-500 outline-none bg-white dark:bg-dark-bg border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white"
                                     onKeyDown={(e) => e.key === 'Enter' && handleSave()}
                                 />
-                                
-                                {errorMsg && (
-                                    <p className="text-red-500 text-xs mb-4 flex items-center gap-1">
-                                        <i className="ph ph-warning-circle"></i> {errorMsg}
-                                    </p>
-                                )}
-
+                                {errorMsg && <p className="text-red-500 text-xs mb-4 flex items-center gap-1"><i className="ph ph-warning-circle"></i> {errorMsg}</p>}
                                 <div className="flex justify-end gap-2 mt-4">
-                                    <button onClick={onClose} className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded">キャンセル</button>
-                                    <button 
-                                        onClick={handleSave}
-                                        disabled={!inputValue}
-                                        className={`px-4 py-2 text-white rounded transition-colors ${!inputValue ? 'bg-gray-300 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'}`}
-                                    >
-                                        認証して保存
-                                    </button>
-                                </div>
-                            </>
-                        ) : (
-                            <>
-                                <h3 className="text-lg font-bold mb-2 flex items-center gap-2">
-                                    <i className="ph ph-code text-indigo-600"></i>
-                                    暗号化コード生成
-                                </h3>
-                                <p className="text-xs text-gray-600 mb-4 bg-yellow-50 p-2 rounded border border-yellow-200">
-                                    HTMLファイルに埋め込むための暗号化済み文字列を生成します。<br/>
-                                    <strong>注意:</strong> ここで入力したAPIキーは外部には送信されません。
-                                </p>
-                                
-                                <label className="block text-xs font-bold text-gray-700 mb-1">新しいAPIキー (AIza...)</label>
-                                <input
-                                    type="password"
-                                    value={rawKeyInput}
-                                    onChange={(e) => setRawKeyInput(e.target.value)}
-                                    placeholder="Google AI Studioで取得したキー"
-                                    className="w-full border rounded p-2 mb-3 text-sm"
-                                />
-
-                                <label className="block text-xs font-bold text-gray-700 mb-1">暗号化用パスワード</label>
-                                <input
-                                    type="password"
-                                    value={encPassword}
-                                    onChange={(e) => setEncPassword(e.target.value)}
-                                    placeholder="利用者に共有するパスワードを設定"
-                                    className="w-full border rounded p-2 mb-3 text-sm"
-                                />
-                                
-                                <button 
-                                    onClick={handleGenerateEncrypted}
-                                    className="w-full bg-indigo-600 text-white text-xs font-bold py-2 rounded hover:bg-indigo-700 mb-4"
-                                >
-                                    暗号化文字列を生成
-                                </button>
-
-                                {generatedString && (
-                                    <div className="bg-gray-100 p-3 rounded border border-gray-300">
-                                        <p className="text-xs font-bold text-gray-700 mb-1">生成されたコード:</p>
-                                        <textarea 
-                                            readOnly
-                                            className="w-full h-20 text-xs font-mono break-all border p-1 bg-white resize-none"
-                                            value={generatedString}
-                                            onClick={(e) => e.target.select()}
-                                        />
-                                        <p className="text-[10px] text-gray-500 mt-1">
-                                            ↑これをコピーして、HTMLファイル内の <code>const ENCRYPTED_API_KEY = "";</code> の中に貼り付けてください。
-                                        </p>
-                                    </div>
-                                )}
-                                
-                                <div className="flex justify-end gap-2 mt-4 pt-2 border-t">
-                                    <button onClick={onClose} className="px-4 py-2 text-xs text-gray-600 hover:bg-gray-100 rounded">閉じる</button>
+                                    <button onClick={onClose} className="px-4 py-2 rounded text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">キャンセル</button>
+                                    <button onClick={handleSave} disabled={!inputValue} className={`px-4 py-2 text-white rounded transition-colors ${!inputValue ? 'bg-gray-500 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'}`}>認証して保存</button>
                                 </div>
                             </>
                         )}
-                        
-                        {!isAdminMode && (
-                            <div className="mt-4 pt-4 border-t text-xs text-gray-500">
-                                <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noreferrer" className="text-blue-500 hover:underline flex items-center gap-1">
-                                    <i className="ph ph-arrow-square-out"></i> APIキーを直接入力する場合 (Google AI Studio)
-                                </a>
+
+                        {/* CONTENT: THEME */}
+                        {tabMode === 'theme' && (
+                            <div className="py-2">
+                                <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
+                                    <i className="ph ph-palette text-blue-500"></i>テーマ切り替え
+                                </h3>
+                                <div className="space-y-3">
+                                    {[
+                                        { id: 'light', icon: 'sun', label: 'ライトモード' },
+                                        { id: 'dark', icon: 'moon', label: 'ダークモード' }
+                                    ].map(t => (
+                                        <label key={t.id} className={`flex items-center justify-between p-4 rounded-lg border cursor-pointer transition-all ${theme === t.id ? 'border-blue-500 ring-1 ring-blue-500' : 'border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-dark-bg'}`}>
+                                            <div className="flex items-center gap-3">
+                                                <div className={`w-8 h-8 rounded-full flex items-center justify-center ${t.id === 'light' ? 'bg-gray-100 text-gray-600' : 'bg-[#131314] text-gray-300 border border-gray-600'}`}>
+                                                    <i className={`ph ph-${t.icon}`}></i>
+                                                </div>
+                                                <span className="font-medium">{t.label}</span>
+                                            </div>
+                                            <input type="radio" name="theme" checked={theme === t.id} onChange={() => setTheme(t.id)} className="w-4 h-4 text-blue-600" />
+                                        </label>
+                                    ))}
+                                </div>
+                                <div className="flex justify-end mt-6">
+                                     <button onClick={onClose} className="px-4 py-2 rounded text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">閉じる</button>
+                                </div>
                             </div>
+                        )}
+
+                        {/* CONTENT: ADMIN */}
+                        {tabMode === 'admin' && (
+                            <>
+                                <h3 className="text-lg font-bold mb-2 flex items-center gap-2">
+                                    <i className="ph ph-code text-indigo-500"></i>暗号化コード生成
+                                </h3>
+                                <label className="block text-xs font-bold mb-1 text-gray-700 dark:text-gray-400">新しいAPIキー</label>
+                                <input type="password" value={rawKeyInput} onChange={(e) => setRawKeyInput(e.target.value)} placeholder="AIza..." className="w-full border rounded p-2 mb-3 text-sm bg-white dark:bg-dark-bg border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white" />
+                                <label className="block text-xs font-bold mb-1 text-gray-700 dark:text-gray-400">暗号化用パスワード</label>
+                                <input type="password" value={encPassword} onChange={(e) => setEncPassword(e.target.value)} placeholder="パスワードを設定" className="w-full border rounded p-2 mb-3 text-sm bg-white dark:bg-dark-bg border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white" />
+                                <button onClick={handleGenerateEncrypted} className="w-full bg-indigo-600 text-white text-xs font-bold py-2 rounded hover:bg-indigo-700 mb-4">暗号化文字列を生成</button>
+                                {generatedString && (
+                                    <div className="p-3 rounded border bg-gray-100 dark:bg-dark-bg border-gray-300 dark:border-gray-600">
+                                        <textarea readOnly className="w-full h-20 text-xs font-mono break-all border p-1 resize-none bg-white dark:bg-[#131314] text-gray-800 dark:text-gray-300 border-gray-300 dark:border-gray-700" value={generatedString} onClick={(e) => e.target.select()} />
+                                    </div>
+                                )}
+                                <div className="flex justify-end gap-2 mt-4 pt-2 border-t border-gray-200 dark:border-dark-border">
+                                    <button onClick={onClose} className="px-4 py-2 text-xs rounded text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">閉じる</button>
+                                </div>
+                            </>
                         )}
                     </div>
                 </div>
@@ -393,82 +391,54 @@
         };
 
         const Sidebar = ({ onNewChat, onOpenSettings, hasKey, onRunTool }) => (
-            <div className="w-64 bg-gray-900 text-gray-100 flex flex-col h-full hidden md:flex border-r border-gray-700 shadow-xl z-20">
+            // Sidebar is fixed to dark color regardless of theme
+            <div className="w-64 flex flex-col h-full hidden md:flex border-r shadow-xl z-20 transition-colors duration-300 bg-[#1e1f20] border-gray-700 text-gray-100">
                 <div className="p-4">
-                    <div className="flex items-center gap-2 mb-6 text-blue-400">
+                    <div className="flex items-center gap-2 mb-6 text-[#f1f1f1]">
                         <i className="ph ph-television text-3xl"></i>
                         <div className="flex flex-col">
                             <span className="text-xl font-bold tracking-tight leading-none">トレンド検知</span>
                             <span className="text-xl font-bold tracking-tight leading-none">AIエージェント</span>
                         </div>
                     </div>
-                    <button 
-                        onClick={onNewChat}
-                        className="w-full bg-blue-600 hover:bg-blue-700 text-white rounded-md p-3 flex items-center gap-2 transition-colors duration-200"
-                    >
-                        <i className="ph ph-plus"></i>
-                        新しいチャット
+                    <button onClick={onNewChat} className="w-full bg-blue-600 hover:bg-blue-700 text-white rounded-md p-3 flex items-center gap-2 transition-colors duration-200">
+                        <i className="ph ph-plus"></i>新しいチャット
                     </button>
                 </div>
                 
-                {/* AI Tools Section */}
                 <div className="px-4 mb-4">
-                    <p className="text-xs text-gray-500 font-bold mb-3 uppercase tracking-wider flex items-center gap-1">
-                        <i className="ph ph-sparkle"></i> AI Tools
-                    </p>
+                    <p className="text-xs text-gray-400 font-bold mb-3 uppercase tracking-wider flex items-center gap-1"><i className="ph ph-sparkle"></i> AI Tools</p>
                     <div className="space-y-2">
-                         <button 
-                            onClick={() => onRunTool('predict')}
-                            className="w-full text-left text-sm p-2 bg-gradient-to-r from-indigo-900 to-purple-900 hover:from-indigo-800 hover:to-purple-800 rounded border border-indigo-700/50 text-indigo-100 transition-all flex items-center gap-2 group"
-                        >
-                            <span className="group-hover:scale-110 transition-transform">✨</span> レポート生成
-                        </button>
-                        <button 
-                            onClick={() => onRunTool('plan')}
-                            className="w-full text-left text-sm p-2 bg-gradient-to-r from-indigo-900 to-purple-900 hover:from-indigo-800 hover:to-purple-800 rounded border border-indigo-700/50 text-indigo-100 transition-all flex items-center gap-2 group"
-                        >
-                            <span className="group-hover:scale-110 transition-transform">✨</span> 新商品・新メニュー企画
-                        </button>
-                         <button 
-                            onClick={() => onRunTool('report')}
-                            className="w-full text-left text-sm p-2 bg-gradient-to-r from-indigo-900 to-purple-900 hover:from-indigo-800 hover:to-purple-800 rounded border border-indigo-700/50 text-indigo-100 transition-all flex items-center gap-2 group"
-                        >
-                            <span className="group-hover:scale-110 transition-transform">✨</span> ヒット予測
-                        </button>
+                        {['predict:レポート生成', 'plan:新商品・新メニュー企画', 'report:ヒット予測'].map(tool => {
+                            const [id, label] = tool.split(':');
+                            return (
+                                <button key={id} onClick={() => onRunTool(id)} className="w-full text-left text-sm p-2 bg-gradient-to-r from-indigo-900 to-purple-900 hover:from-indigo-800 hover:to-purple-800 rounded border border-indigo-700/50 text-indigo-100 transition-all flex items-center gap-2 group">
+                                    <span className="group-hover:scale-110 transition-transform">✨</span> {label}
+                                </button>
+                            );
+                        })}
                     </div>
                 </div>
 
-                <div className="flex-1 overflow-y-auto px-4">
-                    <p className="text-xs text-gray-500 font-bold mb-3 uppercase tracking-wider">History</p>
+                <div className="flex-1 overflow-y-auto px-4 dark-mode-scroll">
+                    <p className="text-xs text-gray-400 font-bold mb-3 uppercase tracking-wider">History</p>
                     <div className="space-y-2">
-                        <div className="text-sm p-2 hover:bg-gray-800 rounded cursor-pointer truncate text-gray-300">
-                            食のトレンドを教えて
-                        </div>
-                        <div className="text-sm p-2 hover:bg-gray-800 rounded cursor-pointer truncate text-gray-300">
-                            最新のスイーツは？
-                        </div>
-                         <div className="text-sm p-2 hover:bg-gray-800 rounded cursor-pointer truncate text-gray-300">
-                            ラーメンの流行
-                        </div>
+                        {['食のトレンドを教えて', '最新のスイーツは？', 'ラーメンの流行'].map((h, i) => (
+                            <div key={i} className="text-sm p-2 hover:bg-gray-800 rounded cursor-pointer truncate text-gray-300">{h}</div>
+                        ))}
                     </div>
                 </div>
 
-                <div className="p-4 border-t border-gray-800">
+                <div className="p-4 border-t border-gray-700">
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-blue-500 to-purple-500 flex items-center justify-center text-xs font-bold">
-                                MD
-                            </div>
+                            <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-blue-500 to-purple-500 flex items-center justify-center text-xs font-bold text-white">MD</div>
                             <div className="text-sm">
-                                <p className="font-medium">Demo User</p>
+                                <p className="font-medium text-gray-200">Demo User</p>
                                 <p className="text-xs text-gray-400">M-Data Viewer</p>
                             </div>
                         </div>
-                        <button 
-                            onClick={onOpenSettings}
-                            className={`p-2 rounded-full hover:bg-gray-700 transition-colors ${hasKey ? 'text-green-400' : 'text-gray-400'}`}
-                            title={hasKey ? "Gemini API連携中" : "APIキー未設定"}
-                        >
+                        <button onClick={onOpenSettings} className={`p-2 rounded-full hover:bg-gray-700 transition-colors ${hasKey ? 'text-green-400' : 'text-gray-400'}`} title={hasKey ? "Gemini API連携中" : "APIキー未設定"}>
                             <i className="ph ph-gear text-xl"></i>
                         </button>
                     </div>
@@ -478,70 +448,44 @@
 
         const Message = ({ message, id }) => {
             const isAI = message.role === 'assistant';
-            
-            // Markdown rendering
-            const renderContent = (content) => {
-                return { __html: marked.parse(content) };
-            };
-
             return (
                 <div id={id} className={`flex w-full ${isAI ? 'justify-start' : 'justify-end'} mb-6`}>
                     <div className={`flex max-w-[90%] md:max-w-[85%] ${isAI ? 'flex-row' : 'flex-row-reverse'} gap-4`}>
-                        {/* Avatar */}
                         <div className={`w-8 h-8 md:w-10 md:h-10 rounded-full flex-shrink-0 flex items-center justify-center ${isAI ? 'bg-blue-600 text-white' : 'bg-gray-300 text-gray-600'}`}>
                             {isAI ? <i className="ph ph-robot text-xl"></i> : <i className="ph ph-user text-xl"></i>}
                         </div>
-
-                        {/* Content */}
                         <div className="flex flex-col gap-2 min-w-0">
-                            <div className="font-bold text-sm text-gray-700">
-                                {isAI ? 'トレンド検知AIエージェント' : 'You'}
+                            <div className="font-bold text-sm text-gray-700 dark:text-gray-400">{isAI ? 'トレンド検知AIエージェント' : 'You'}</div>
+                            <div className={`p-4 md:p-6 rounded-2xl shadow-sm border ${
+                                isAI 
+                                    ? 'bg-white dark:bg-dark-surface dark:text-gray-200 border-gray-100 dark:border-dark-border' 
+                                    : 'bg-blue-50 dark:bg-gray-700 dark:text-gray-100 border-blue-100 dark:border-gray-600'
+                            }`}>
+                                <div className="prose text-sm md:text-base break-words dark:prose-invert" dangerouslySetInnerHTML={{ __html: marked.parse(message.content) }} />
                             </div>
-                            <div className={`bg-white p-4 md:p-6 rounded-2xl shadow-sm border border-gray-100 ${!isAI && 'bg-blue-50 border-blue-100'}`}>
-                                <div 
-                                    className="prose text-sm md:text-base break-words"
-                                    dangerouslySetInnerHTML={renderContent(message.content)}
-                                />
-                            </div>
-                            
-                            {/* Evidence Data Section (Only for AI with evidence) */}
                             {isAI && message.evidence && message.evidence.length > 0 && (
-                                <div className="mt-2 bg-white rounded-lg border border-gray-200 overflow-hidden shadow-sm w-full">
+                                <div className="mt-2 rounded-lg border overflow-hidden shadow-sm w-full bg-white dark:bg-dark-surface border-gray-200 dark:border-dark-border">
                                     <details className="group">
-                                        <summary className="flex items-center justify-between p-3 bg-gray-50 cursor-pointer hover:bg-gray-100 transition-colors">
-                                            <span className="text-sm font-semibold text-gray-600 flex items-center gap-2">
-                                                <i className="ph ph-table"></i>
-                                                参照データ (AI抽出): {message.evidence.length}件
-                                            </span>
-                                            <span className="transform group-open:rotate-180 transition-transform">
-                                                <i className="ph ph-caret-down text-gray-400"></i>
-                                            </span>
+                                        <summary className="flex items-center justify-between p-3 cursor-pointer transition-colors bg-gray-50 dark:bg-[#2d2e30] hover:bg-gray-100 dark:hover:bg-[#383a3d]">
+                                            <span className="text-sm font-semibold flex items-center gap-2 text-gray-600 dark:text-gray-300"><i className="ph ph-table"></i>参照データ: {message.evidence.length}件</span>
+                                            <span className="transform group-open:rotate-180 transition-transform"><i className="ph ph-caret-down text-gray-400"></i></span>
                                         </summary>
-                                        <div className="overflow-x-auto max-h-60 overflow-y-auto">
-                                            <table className="w-full text-xs text-left text-gray-600">
-                                                <thead className="text-xs text-gray-700 uppercase bg-gray-50 border-b sticky top-0">
+                                        <div className="overflow-x-auto max-h-60 overflow-y-auto dark-mode-scroll">
+                                            <table className="w-full text-xs text-left text-gray-600 dark:text-gray-300">
+                                                <thead className="text-xs uppercase border-b sticky top-0 bg-gray-50 dark:bg-[#2d2e30] text-gray-700 dark:text-gray-400 border-gray-200 dark:border-gray-600">
                                                     <tr>
-                                                        <th scope="col" className="px-3 py-2 whitespace-nowrap bg-gray-50">放送日</th>
-                                                        <th scope="col" className="px-3 py-2 whitespace-nowrap bg-gray-50">局</th>
-                                                        <th scope="col" className="px-3 py-2 min-w-[150px] bg-gray-50">番組名</th>
-                                                        <th scope="col" className="px-3 py-2 min-w-[200px] bg-gray-50">ヘッドライン</th>
-                                                        <th scope="col" className="px-3 py-2 whitespace-nowrap bg-gray-50">トレンドテーマ</th>
-                                                        <th scope="col" className="px-3 py-2 whitespace-nowrap bg-gray-50">ジャンル</th>
-                                                        <th scope="col" className="px-3 py-2 min-w-[150px] bg-gray-50">タグ</th>
-                                                        <th scope="col" className="px-3 py-2 min-w-[300px] bg-gray-50">解説</th>
+                                                        {['放送日','局','番組名','ヘッドライン','テーマ','ジャンル'].map(h => <th key={h} className="px-3 py-2 whitespace-nowrap bg-gray-50 dark:bg-[#2d2e30] border-gray-200 dark:border-gray-600 border">{h}</th>)}
                                                     </tr>
                                                 </thead>
                                                 <tbody>
                                                     {message.evidence.map((item, idx) => (
-                                                        <tr key={idx} className="bg-white border-b hover:bg-gray-50 align-top">
-                                                            <td className="px-3 py-2 whitespace-nowrap">{item.date.slice(5)}</td>
-                                                            <td className="px-3 py-2 whitespace-nowrap font-medium text-gray-900">{item.station}</td>
-                                                            <td className="px-3 py-2">{item.program}</td>
-                                                            <td className="px-3 py-2">{item.headline}</td>
-                                                            <td className="px-3 py-2 text-blue-600 font-medium whitespace-nowrap">{item.theme}</td>
-                                                            <td className="px-3 py-2 whitespace-nowrap">{item.genre}</td>
-                                                            <td className="px-3 py-2 text-gray-500">{item.tags}</td>
-                                                            <td className="px-3 py-2">{item.explanation}</td>
+                                                        <tr key={idx} className="border-b align-top bg-white dark:bg-dark-surface hover:bg-gray-50 dark:hover:bg-[#2d2e30] border-gray-200 dark:border-gray-700">
+                                                            <td className="px-3 py-2 border-r dark:border-gray-700">{item.date.slice(5)}</td>
+                                                            <td className="px-3 py-2 border-r dark:border-gray-700 font-medium">{item.station}</td>
+                                                            <td className="px-3 py-2 border-r dark:border-gray-700">{item.program}</td>
+                                                            <td className="px-3 py-2 border-r dark:border-gray-700">{item.headline}</td>
+                                                            <td className="px-3 py-2 border-r dark:border-gray-700 text-blue-600 dark:text-blue-400 font-medium">{item.theme}</td>
+                                                            <td className="px-3 py-2">{item.genre}</td>
                                                         </tr>
                                                     ))}
                                                 </tbody>
@@ -557,277 +501,75 @@
         };
 
         const ChatArea = ({ apiKey, setApiKey, toolTrigger }) => {
-            const [messages, setMessages] = React.useState([
-                { 
-                    role: 'assistant', 
-                    content: 'テレビで話題のモノ・コトに関するトレンド予兆をタイムリーに検知し、新商品やメニューの企画立案をお手伝いします。\n\n「テレビで話題になってトレンドになりそうなスイーツは？」\n「最近、露出が増えた商品やメニューとその背景を教えて」\n\n左サイドバーの「✨ AI Tools」を使うと、新商品・新メニューの企画立案やレポート生成、ヒット予兆検知も可能です。',
-                    evidence: []
-                }
-            ]);
+            const [messages, setMessages] = React.useState([{ 
+                role: 'assistant', 
+                content: 'テレビで話題のモノ・コトに関するトレンド予兆をタイムリーに検知し、新商品やメニューの企画立案をお手伝いします。', 
+                evidence: []
+            }]);
             const [input, setInput] = React.useState('');
             const [isLoading, setIsLoading] = React.useState(false);
-            const [activeTool, setActiveTool] = React.useState(null); // 'predict', 'plan', 'report'
+            const [activeTool, setActiveTool] = React.useState(null); 
             const messagesEndRef = React.useRef(null);
 
-            const scrollToBottom = () => {
-                messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-            };
-
-            const scrollToMessageTop = (index) => {
-                const el = document.getElementById(`msg-${index}`);
-                if (el) {
-                    el.scrollIntoView({ behavior: "smooth", block: "start" });
-                }
-            };
+            const scrollToBottom = () => messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
 
             React.useEffect(() => {
-                if (isLoading) {
-                    scrollToBottom();
-                } else if (messages.length > 0) {
-                    const lastIndex = messages.length - 1;
-                    const lastMsg = messages[lastIndex];
-                    if (lastMsg.role === 'assistant') {
-                        setTimeout(() => scrollToMessageTop(lastIndex), 50);
-                    } else {
-                        scrollToBottom();
-                    }
-                }
-            }, [messages, isLoading]);
-
-            // Handle Tool Trigger from Parent
-            React.useEffect(() => {
-                if (toolTrigger) {
-                    initiateTool(toolTrigger);
-                }
+                if (toolTrigger) initiateTool(toolTrigger);
             }, [toolTrigger]);
 
+            React.useEffect(() => scrollToBottom(), [messages, isLoading]);
+
             const initiateTool = (toolType) => {
-                if (!apiKey) {
-                    setMessages(prev => [...prev, { 
-                        role: 'assistant', 
-                        content: '⚠️ **この機能を使用するには認証が必要です**\n\n左下の設定ボタン⚙️から、パスワードまたはAPIキーを入力してください。',
-                        evidence: []
-                    }]);
-                    return;
-                }
-
+                if (!apiKey) return setMessages(prev => [...prev, { role: 'assistant', content: '⚠️ **認証が必要です**\n\n左下の設定ボタン⚙️からAPIキーを設定してください。', evidence: [] }]);
                 setActiveTool(toolType);
-                let question = "";
-
-                switch(toolType) {
-                    case 'predict':
-                        question = "トレンドレポートを作成します。 分析したいカテゴリ、キーワード、期間（例: 2025年10月、2025年10月5日～2025年10月12日）を入力してください。また、特定のキーワードがあれば入力してください。";
-                        break;
-                    case 'plan':
-                        question = "抽出されたトレンド情報を元に、消費者のインサイトを突いた新商品・新メニューの企画を立案します。\n\n企画したいテーマ、カテゴリ、キーワード、ターゲット層を入力してください。\n\n例：「高級（プレミアム）」「夜食」を組み合わせたコンビニスイーツの新商品を企画して\n\n「進化形」「新食感」をテーマに、20代の若者にヒットしそうな新商品を開発して";
-                        break;
-                    case 'report':
-                        question = "最近の傾向や過去のパターンから、ヒットの予兆（次にくるもの、社会現象化しそうなもの）を予測します。\n\n調査したいテーマ、カテゴリ、キーワード、ターゲット層を入力してください。\n\n （例： 「和スイーツ」「冷凍食品」「外食」「アルコール飲料」「健康食品」「Z世代」）";
-                        break;
-                }
-
-                setMessages(prev => [...prev, { role: 'assistant', content: question }]);
-            };
-
-            const executeTool = async (userInput) => {
-                let prompt = "";
-                
-                switch(activeTool) {
-                    case 'predict':
-                        prompt = `ユーザーの要望: ${userInput}\n\n提供されたTVメタデータを分析し、指定されたカテゴリ・キーワードに関する**詳細なトレンドレポート**を作成してください。\n\n` +
-                                 `【レポートの構成要件】\n` +
-                                 `1. **定量・定性分析**\n` +
-                                 `   - 露出傾向・推移（件数や時期）\n` +
-                                 `   - 競合比較分析（類似トレンドとの比較）\n` +
-                                 `   - ポジティブ/ネガティブ分析（番組内での紹介され方、スタジオの反応など）\n` +
-                                 `2. **スコアリング評価**\n` +
-                                 `   以下の5項目を5段階評価し、レーダーチャート形式（テキスト表現）で出力してください。\n` +
-                                 `   - 新規性・独自性\n` +
-                                 `   - 話題性（SNS拡散など）\n` +
-                                 `   - 持続性（ブームか定着か）\n` +
-                                 `   - 訴求力（シズル感、映え）\n` +
-                                 `   - 総合評価\n` +
-                                 `3. **ポジショニングマップ**\n` +
-                                 `   - 縦軸・横軸を適切に設定し（例：価格帯×手軽さ、伝統×革新など）、主要なキーワードを配置した図をアスキーアートで作成してください。\n` +
-                                 `4. **展望と「金の卵」レコメンド**\n` +
-                                 `   - 今後の予測と、これから流行しそうな「金の卵（ネクストブレイク）」を具体的に提案してください。\n\n` +
-                                 `読みやすく、ビジネスレポートとして活用できる形式で出力してください。`;
-                        break;
-                    case 'plan':
-                        prompt = `ユーザーの要件: ${userInput}\n\n提供されたTVメタデータを活用して、**新商品・新メニューの企画**を立案してください。\n` +
-                                 `【企画案の構成要件】\n` +
-                                 `1. **トレンド情報分析**\n` +
-                                 `   - 抽出されたトレンド情報を多角的に分析・予測し、ユーザーが指定したテーマ、カテゴリ、キーワードを組み合わせた具体的な新商品・新メニューを提案してください。\n` +
-                                 `2. **ターゲット層と根拠**\n` +
-                                 `   - どのようなターゲット層（例：年齢・性別・趣味趣向・ライフスタイル）に売れそうか、トレンドデータに基づく根拠とともに説明を加えてください。\n` +
-                                 `3. **スコアリング評価**\n` +
-                                 `   - 新規性・独自性、話題性、持続性、訴求力などの視点でスコア化（5段階評価）してください。\n` +
-                                 `4. **ポジショニングマップ**\n` +
-                                 `   - 競合や既存トレンドとの立ち位置を可視化するポジショニングマップをアスキーアートで作成してください。\n` +
-                                 `5. **展望とレコメンド**\n` +
-                                 `   - 展望解説と、次に狙い目となる「金の卵」をレコメンドしてください。`;
-                        break;
-                    case 'report':
-                        prompt = `ユーザーの調査要望: ${userInput}\n\n` +
-                                 `提供されたTVメタデータやトレンド情報の傾向を多角的に分析し、指定されたテーマ・カテゴリ・ターゲット層において**ヒットしそうなもの（ヒットの予兆）**を予測してください。\n` +
-                                 `【予測レポートの構成要件】\n` +
-                                 `1. **ヒット予兆の分析**\n` +
-                                 `   - 何がヒットしそうか具体的に挙げ、トレンドの予兆や拡がりをデータから捕捉し、なぜヒットしそうなのか根拠とともに説明してください。\n` +
-                                 `2. **スコアリング評価**\n` +
-                                 `   - 以下の視点で5段階評価し、レーダーチャート形式（テキスト表現）で出力してください。\n` +
-                                 `   - 新規性・独自性\n` +
-                                 `   - 話題性（SNS拡散など）\n` +
-                                 `   - 持続性\n` +
-                                 `   - 訴求力\n` +
-                                 `   - 総合評価\n` +
-                                 `3. **ポジショニングマップ**\n` +
-                                 `   - 競合や既存トレンドとの位置関係を示すポジショニングマップをアスキーアートで作成してください。\n` +
-                                 `4. **展望と「金の卵」レコメンド**\n` +
-                                 `   - 今後の展望解説と、次に狙い目となる「金の卵」をレコメンドしてください。`;
-                        break;
-                }
-
-                const result = await callGeminiAPI(prompt, true); // true = isTool
-                setMessages(prev => [...prev, { 
-                    role: 'assistant', 
-                    content: result.text,
-                    evidence: result.evidence
-                }]);
-                setActiveTool(null); // Reset tool mode
-            };
-
-            // --- LOCAL LOGIC (No API Key) ---
-            const analyzeQueryLocal = (query) => {
-                const keywords = query.replace(/教えて|トレンド|流行|は？|の|について/g, ' ').split(/\s+/).filter(k => k);
-                const hits = MOCK_DATA.filter(item => {
-                    const text = `${item.headline} ${item.summary} ${item.theme} ${item.genre} ${item.tags} ${item.explanation}`.toLowerCase();
-                    return keywords.some(k => text.includes(k.toLowerCase()));
-                });
-
-                const isGeneral = keywords.length === 0 || ["食", "最近", "全部"].includes(keywords[0]);
-                const targetData = isGeneral ? MOCK_DATA : hits;
-
-                if (targetData.length === 0) {
-                    return {
-                        text: `申し訳ありません。ご指定の「${query}」に関するデータは、現在のTVメタデータ（直近1ヶ月分）には見当たりませんでした。\n別のキーワードでお試しいただくか、設定からパスワードを入力してAI認証を行ってください。`,
-                        evidence: []
-                    };
-                }
-
-                // Simple Local Aggregation
-                const genreCount = {};
-                targetData.forEach(item => { genreCount[item.genre] = (genreCount[item.genre] || 0) + 1; });
-                const sortedGenres = Object.entries(genreCount).sort((a,b) => b[1] - a[1]);
-                const topTrend = targetData[0];
-
-                return {
-                    text: `**(ローカル分析モード)**\n\n**【結論】**\n「${query}」に関しては、**${targetData.length}件**の露出が確認されました。主に**${topTrend.theme}**などが取り上げられています。\n\n**詳細分析:**\n- 最多ジャンル: **${sortedGenres[0][0]}** (${sortedGenres[0][1]}件)\n- 特徴キーワード: ${topTrend.tags}\n\n※Gemini API連携機能を使うと、より文脈に沿った自然な回答が生成されます。`,
-                    evidence: targetData
+                const prompts = {
+                    predict: "トレンドレポートを作成します。分析したいカテゴリや期間を入力してください。",
+                    plan: "新商品・新メニューの企画を立案します。テーマやターゲット層を入力してください。",
+                    report: "ヒットの予兆を予測します。調査したいテーマやカテゴリを入力してください。"
                 };
+                setMessages(prev => [...prev, { role: 'assistant', content: prompts[toolType] || "" }]);
             };
 
-            // --- GEMINI API LOGIC ---
             const callGeminiAPI = async (query, isTool = false) => {
-                // Changed model to gemini-2.0-flash
                 const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+                const systemPrompt = `あなたはTVメタデータを分析する専門のアシスタントです。データセット: ${JSON.stringify(MOCK_DATA)}。根拠データを元に回答してください。`;
                 
-                // Context Construction
-                const systemPrompt = `
-あなたはTVメタデータを分析する専門のアシスタントです。
-以下のJSONデータは、2025年9月〜10月のテレビ番組で取り上げられた食のトレンド情報です。
-ユーザーの質問に対して、このデータのみを根拠として回答してください。
-
-### データセット (TV Metadata):
-${JSON.stringify(MOCK_DATA)}
-
-### 回答のルール:
-1. まず【結論】を簡潔に述べる。
-2. 次に【詳細分析】として、ジャンル傾向、頻出キーワード、露出の多い番組局などの傾向を分析する。
-3. 最後に【根拠データ】として、具体的な番組名や店舗名、商品名を挙げて説明する。
-4. データにない情報は「データに含まれていません」と答える。
-5. 出力はMarkdown形式で行う。
-${isTool ? "6. ツール実行モードです。ユーザーの指示に従い、創造的かつ論理的に分析・提案を行ってください。" : ""}
-`;
-
-                const payload = {
-                    contents: [
-                        {
-                            parts: [
-                                { text: systemPrompt },
-                                { text: isTool ? `以下のタスクを実行してください: ${query}` : `ユーザーの質問: ${query}` }
-                            ]
-                        }
-                    ]
-                };
-
                 try {
                     const response = await fetch(API_URL, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(payload)
+                        body: JSON.stringify({ contents: [{ parts: [{ text: systemPrompt }, { text: isTool ? `タスク: ${query}` : `質問: ${query}` }] }] })
                     });
-
                     const data = await response.json();
-                    
-                    if (data.error) {
-                        throw new Error(data.error.message);
-                    }
-
-                    const aiText = data.candidates[0].content.parts[0].text;
-                    
-                    // Simple logic for evidence extraction
-                    const keywords = query.replace(/教えて|トレンド|流行|は？|の|について/g, ' ').split(/\s+/).filter(k => k);
-                     const relevantData = MOCK_DATA.filter(item => {
-                        const text = `${item.headline} ${item.summary} ${item.theme} ${item.genre}`.toLowerCase();
-                        return isTool ? true : (keywords.some(k => text.includes(k.toLowerCase())) || aiText.includes(item.theme));
-                    });
-                    
-                    return {
-                        text: aiText,
-                        evidence: relevantData.length > 0 ? relevantData.slice(0, 10) : MOCK_DATA.slice(0, 5) // Fallback limit
-                    };
-
+                    if (data.error) throw new Error(data.error.message);
+                    return { text: data.candidates[0].content.parts[0].text, evidence: MOCK_DATA.slice(0, 5) }; // Mock evidence logic
                 } catch (error) {
-                    console.error("Gemini API Error:", error);
-                    return {
-                        text: `⚠️ **エラーが発生しました**\nGemini APIの呼び出しに失敗しました。\nAPIキー（またはパスワードによる復号）が正しいか確認してください。\n\nエラー詳細: ${error.message}`,
-                        evidence: []
-                    };
+                    return { text: `エラー: ${error.message}`, evidence: [] };
                 }
             };
 
             const handleSubmit = async (e) => {
                 e.preventDefault();
                 if (!input.trim()) return;
-
                 const userMsg = input;
                 setMessages(prev => [...prev, { role: 'user', content: userMsg }]);
                 setInput('');
                 setIsLoading(true);
 
-                // Decide execution mode based on activeTool state
                 if (activeTool) {
-                    await executeTool(userMsg);
-                    setIsLoading(false);
-                    return;
-                }
-
-                // Normal Chat Mode
-                if (apiKey) {
+                    const result = await callGeminiAPI(userMsg, true);
+                    setMessages(prev => [...prev, { role: 'assistant', content: result.text, evidence: result.evidence }]);
+                    setActiveTool(null);
+                } else if (apiKey) {
                     const result = await callGeminiAPI(userMsg);
-                    setMessages(prev => [...prev, { 
-                        role: 'assistant', 
-                        content: result.text,
-                        evidence: result.evidence
-                    }]);
+                    setMessages(prev => [...prev, { role: 'assistant', content: result.text, evidence: result.evidence }]);
                 } else {
-                    // Use Local Logic (Simulation)
                     setTimeout(() => {
-                        const result = analyzeQueryLocal(userMsg);
+                        const hits = MOCK_DATA.filter(i => JSON.stringify(i).includes(userMsg));
                         setMessages(prev => [...prev, { 
                             role: 'assistant', 
-                            content: result.text,
-                            evidence: result.evidence
+                            content: hits.length ? `「${userMsg}」に関するデータが見つかりました。` : `「${userMsg}」に関するデータは見つかりませんでした。`,
+                            evidence: hits.slice(0, 10)
                         }]);
                         setIsLoading(false);
                     }, 800);
@@ -836,71 +578,30 @@ ${isTool ? "6. ツール実行モードです。ユーザーの指示に従い�
             };
 
             return (
-                <div className="flex-1 flex flex-col h-full relative">
-                    {/* Header (Mobile) */}
-                    <div className="md:hidden bg-white p-4 border-b flex items-center justify-between shadow-sm z-10">
-                        <span className="font-bold text-gray-800">トレンド検知AIエージェント</span>
-                        <button className="text-gray-600"><i className="ph ph-list text-2xl"></i></button>
+                <div className="flex-1 flex flex-col h-full relative transition-colors duration-300">
+                    <div className="md:hidden p-4 border-b flex items-center justify-between shadow-sm z-10 bg-white dark:bg-dark-surface dark:border-dark-border dark:text-gray-100">
+                        <span className="font-bold">トレンド検知AI</span>
+                        <button className="text-gray-500"><i className="ph ph-list text-2xl"></i></button>
                     </div>
-
-                    {/* Messages Area */}
-                    <div className="flex-1 overflow-y-auto p-4 md:p-8 space-y-4">
-                        {messages.map((msg, idx) => (
-                            <Message key={idx} message={msg} id={`msg-${idx}`} />
-                        ))}
-                        
-                        {isLoading && (
-                            <div className="flex justify-start mb-6">
-                                <div className="flex gap-4">
-                                    <div className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-blue-600 text-white flex-shrink-0 flex items-center justify-center">
-                                        <i className="ph ph-robot text-xl"></i>
-                                    </div>
-                                    <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-1">
-                                        <div className="w-2 h-2 bg-gray-400 rounded-full typing-dot"></div>
-                                        <div className="w-2 h-2 bg-gray-400 rounded-full typing-dot"></div>
-                                        <div className="w-2 h-2 bg-gray-400 rounded-full typing-dot"></div>
-                                    </div>
-                                </div>
-                            </div>
-                        )}
+                    <div className="flex-1 overflow-y-auto p-4 md:p-8 space-y-4 dark-mode-scroll bg-gray-50 dark:bg-dark-bg">
+                        {messages.map((msg, idx) => <Message key={idx} message={msg} id={`msg-${idx}`} />)}
+                        {isLoading && <div className="flex justify-start mb-6"><div className="p-4 rounded-2xl shadow-sm border flex gap-1 bg-white dark:bg-dark-surface dark:border-dark-border"><div className="w-2 h-2 bg-gray-400 rounded-full typing-dot"></div><div className="w-2 h-2 bg-gray-400 rounded-full typing-dot"></div><div className="w-2 h-2 bg-gray-400 rounded-full typing-dot"></div></div></div>}
                         <div ref={messagesEndRef} />
                     </div>
-
-                    {/* Input Area */}
-                    <div className="bg-white border-t p-4 md:p-6 shadow-lg z-10">
+                    <div className="border-t p-4 md:p-6 shadow-lg z-10 transition-colors duration-300 bg-white dark:bg-[#131314] border-gray-100 dark:border-dark-border">
                         <div className="max-w-4xl mx-auto relative">
                             <form onSubmit={handleSubmit} className="relative flex items-center">
                                 <textarea 
                                     value={input}
                                     onChange={(e) => setInput(e.target.value)}
-                                    onKeyDown={(e) => {
-                                        if(e.key === 'Enter' && !e.shiftKey) {
-                                            e.preventDefault();
-                                            handleSubmit(e);
-                                        }
-                                    }}
-                                    placeholder={activeTool ? "条件を入力してください..." : (apiKey ? "Geminiが分析します。質問を入力してください..." : "キーワードを入力してください（APIキー未設定）...")}
-                                    className={`w-full bg-gray-100 text-gray-800 rounded-xl pl-4 pr-12 py-4 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all resize-none shadow-inner ${activeTool ? 'border-2 border-indigo-200 bg-indigo-50' : ''}`}
+                                    onKeyDown={(e) => { if(e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSubmit(e); } }}
+                                    placeholder={activeTool ? "条件を入力..." : "質問を入力..."}
+                                    className={`w-full rounded-xl pl-4 pr-12 py-4 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all resize-none shadow-inner bg-gray-100 dark:bg-[#1e1f20] dark:text-gray-100 dark:placeholder-gray-500 ${activeTool ? 'border-2 border-indigo-200' : ''}`}
                                     rows="1"
                                     style={{minHeight: '60px'}}
                                 ></textarea>
-                                <button 
-                                    type="submit"
-                                    disabled={!input.trim() || isLoading}
-                                    className={`absolute right-3 p-2 rounded-lg transition-colors ${!input.trim() ? 'text-gray-400 cursor-not-allowed' : 'bg-blue-600 text-white hover:bg-blue-700'}`}
-                                >
-                                    <i className="ph ph-paper-plane-right text-xl"></i>
-                                </button>
+                                <button type="submit" disabled={!input.trim() || isLoading} className={`absolute right-3 p-2 rounded-lg transition-colors ${!input.trim() ? 'text-gray-400 cursor-not-allowed' : 'bg-blue-600 text-white hover:bg-blue-700'}`}><i className="ph ph-paper-plane-right text-xl"></i></button>
                             </form>
-                            <p className="text-center text-xs text-gray-400 mt-2">
-                                {apiKey ? 
-                                    (activeTool ? 
-                                        <span className="text-indigo-600 flex items-center justify-center gap-1 font-bold"><i className="ph ph-sparkle"></i> AIツール実行モード: 入力待ち</span> :
-                                        <span className="text-green-600 flex items-center justify-center gap-1"><i className="ph ph-check-circle"></i> Gemini API 連携中</span>
-                                    ) : 
-                                    <span className="text-orange-500 flex items-center justify-center gap-1"><i className="ph ph-warning-circle"></i> APIキー未設定: ローカルモードで動作中</span>
-                                }
-                            </p>
                         </div>
                     </div>
                 </div>
@@ -909,59 +610,27 @@ ${isTool ? "6. ツール実行モードです。ユーザーの指示に従い�
 
         const App = () => {
             const [isSettingsOpen, setIsSettingsOpen] = React.useState(false);
-            
-            // Initialize from localStorage and URL Parameters
-            const [apiKey, setApiKey] = React.useState(() => {
-                // 1. Check URL parameters
-                const params = new URLSearchParams(window.location.search);
-                const urlKey = params.get('apikey');
-                if (urlKey) return urlKey;
+            const [theme, setTheme] = React.useState(localStorage.getItem('app_theme') || 'light');
+            const [apiKey, setApiKey] = React.useState(localStorage.getItem('tv_meta_api_key') || '');
+            const [toolTrigger, setToolTrigger] = React.useState(null); 
 
-                // 2. Check LocalStorage
-                try {
-                    return localStorage.getItem('tv_meta_api_key') || '';
-                } catch (e) {
-                    return '';
-                }
-            });
-            
-            const [toolTrigger, setToolTrigger] = React.useState(null); // 'predict', 'plan', 'report'
-
-            const handleRunTool = (tool) => {
-                setToolTrigger(null); // Reset first to allow re-triggering same tool
-                setTimeout(() => setToolTrigger(tool), 10);
-            };
+            React.useEffect(() => {
+                localStorage.setItem('app_theme', theme);
+                if (theme === 'dark') document.documentElement.classList.add('dark');
+                else document.documentElement.classList.remove('dark');
+            }, [theme]);
 
             const handleSaveKey = (key) => {
                 setApiKey(key);
-                if (key) {
-                    localStorage.setItem('tv_meta_api_key', key);
-                } else {
-                    localStorage.removeItem('tv_meta_api_key');
-                }
+                key ? localStorage.setItem('tv_meta_api_key', key) : localStorage.removeItem('tv_meta_api_key');
                 setIsSettingsOpen(false);
             };
 
             return (
-                <div className="flex h-screen w-full bg-gray-50 text-gray-900 overflow-hidden">
-                    <Sidebar 
-                        onNewChat={() => window.location.reload()} 
-                        onOpenSettings={() => setIsSettingsOpen(true)}
-                        hasKey={!!apiKey}
-                        onRunTool={handleRunTool}
-                    />
-                    <ChatArea 
-                        apiKey={apiKey} 
-                        setApiKey={setApiKey} 
-                        toolTrigger={toolTrigger}
-                    />
-                    
-                    <ApiKeyModal 
-                        isOpen={isSettingsOpen} 
-                        onClose={() => setIsSettingsOpen(false)}
-                        onSave={handleSaveKey}
-                        currentKey={apiKey}
-                    />
+                <div className="flex h-screen w-full overflow-hidden bg-gray-50 dark:bg-dark-bg text-gray-900 dark:text-gray-100 transition-colors duration-300">
+                    <Sidebar onNewChat={() => window.location.reload()} onOpenSettings={() => setIsSettingsOpen(true)} hasKey={!!apiKey} onRunTool={(tool) => { setToolTrigger(null); setTimeout(() => setToolTrigger(tool), 10); }} />
+                    <ChatArea apiKey={apiKey} setApiKey={setApiKey} toolTrigger={toolTrigger} />
+                    <ApiKeyModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} onSave={handleSaveKey} currentKey={apiKey} theme={theme} setTheme={setTheme} />
                 </div>
             );
         };
