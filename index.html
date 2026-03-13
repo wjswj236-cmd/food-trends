@@ -240,7 +240,7 @@
         // 1. このファイルをブラウザで開き、左下の設定(⚙️) > 「管理者設定」タブをクリック
         // 2. あなたのAPIキーと、任意の「パスワード」を入力して「暗号化文字列」を生成する
         // 3. 生成された文字列をコピーし、下の ENCRYPTED_API_KEY の "" の中に貼り付けて保存する
-        const ENCRYPTED_API_KEY = "U2FsdGVkX19WQPL3YC10RUSSsMTAhc70YOLlHu/ewDBVkXj+KJblhHr/C7nZ+QGQ/TRvYJ325ZFw2gamc0/baA==";
+        const ENCRYPTED_API_KEY = "U2FsdGVkX1+5AhabiWDewgeP3J60XZ3XRRaG/dCOrWFFM4UFEIG7XENMYAmeXCAzgiA2lIzprki0UQld2fW5Cg==";
 
         const TV_META_DATA_INFO = `株式会社エム・データが提供する「TVメタデータ」は以下の4種類で構成されます。
 1. 番組データ（番組放送内容）
@@ -292,13 +292,13 @@ ${JSON.stringify(window.X_DATA)}
 
         // AIの回答から「提案プロンプト」を抽出する関数
         const parseMessageContent = (content) => {
-            const suggestRegex = /### ?(提案プロンプト|選択肢) *\r?\n([\s\S]*)/;
-            const match = content.match(suggestRegex);
-            
             let mainText = content;
             let suggestions = [];
             let suggestionType = 'prompt';
-            
+
+            // パターン1: ### 提案プロンプト / ### 選択肢 フォーマット（正式）
+            const suggestRegex = /### ?(提案プロンプト|選択肢) *\r?\n([\s\S]*)/;
+            const match = content.match(suggestRegex);
             if (match) {
                 suggestionType = match[1] === '選択肢' ? 'choice' : 'prompt';
                 mainText = content.replace(match[0], '').trim();
@@ -309,7 +309,30 @@ ${JSON.stringify(window.X_DATA)}
                     .map(text => text.replace(/^質問案\d+[:：]\s*/, '').trim())
                     .filter(text => text.length > 0);
             }
-            
+
+            // パターン2: 「質問案N:」などプレーンテキスト形式のフォールバック
+            if (suggestions.length === 0) {
+                const lines = content.split('\n');
+                const found = [];
+                lines.forEach(line => {
+                    const m = line.match(/^\s*(?:質問案?\s*\d+\s*[:：]|[①②③④⑤]|\d+[.)）]\s)\s*(.+)/);
+                    if (m) {
+                        const text = m[1].trim();
+                        if (text.length > 5) found.push(text);
+                    }
+                });
+                if (found.length >= 2) {
+                    suggestions = found;
+                    suggestionType = 'prompt';
+                    // 質問案行を mainText から除去
+                    mainText = lines
+                        .filter(line => !line.match(/^\s*(?:質問案?\s*\d+\s*[:：]|[①②③④⑤]|\d+[.)）]\s)/))
+                        .join('\n')
+                        .replace(/\n{3,}/g, '\n\n')
+                        .trim();
+                }
+            }
+
             return { mainText, suggestions, suggestionType };
         };
 
