@@ -240,7 +240,7 @@
         // 1. このファイルをブラウザで開き、左下の設定(⚙️) > 「管理者設定」タブをクリック
         // 2. あなたのAPIキーと、任意の「パスワード」を入力して「暗号化文字列」を生成する
         // 3. 生成された文字列をコピーし、下の ENCRYPTED_API_KEY の "" の中に貼り付けて保存する
-        const ENCRYPTED_API_KEY = "U2FsdGVkX1+1XLj4MrwvOby+RnPtv6jtIQw4r3Cc/pwLshWxtyYGGnhcBWIl3tdawf7LkbsWVyBPt/gP7x6XQw==";
+        const ENCRYPTED_API_KEY = "U2FsdGVkX18sYwJqq4X3cfbppnBOMDs6AKPU7oLi7L0Dd8HIL3QAMvoytGNFJsfwbelBopowY7j/32leBZ8mdw==";
 
         const TV_META_DATA_INFO = `株式会社エム・データが提供する「TVメタデータ」は以下の4種類で構成されます。
 1. 番組データ（番組放送内容）
@@ -428,14 +428,23 @@ ${JSON.stringify(window.X_DATA)}
             const [showTemplates, setShowTemplates] = React.useState(false);
             const [templateCategory, setTemplateCategory] = React.useState(null);
             const messagesEndRef = React.useRef(null);
+            const scrollAreaRef = React.useRef(null);
+            const lastAiMsgRef = React.useRef(null);
             const isDark = theme === 'dark';
 
-            const scrollToBottom = () => {
-                messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-            };
-
             React.useEffect(() => {
-                scrollToBottom();
+                const lastMsg = messages[messages.length - 1];
+                if (!lastMsg) return;
+                if (lastMsg.role === 'model' && messages.length > 1) {
+                    // AI回答は先頭が見えるようにスクロール
+                    if (lastAiMsgRef.current && scrollAreaRef.current) {
+                        const top = lastAiMsgRef.current.offsetTop - 16;
+                        scrollAreaRef.current.scrollTo({ top, behavior: 'smooth' });
+                    }
+                } else {
+                    // ユーザーメッセージ追加時は一番下へ
+                    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+                }
             }, [messages]);
 
             // 通常のメッセージ送信（分析実行）
@@ -596,7 +605,7 @@ ${templateQuestions}
             return (
                 <div className="flex-1 flex flex-col h-full relative">
                     {/* メッセージ履歴 */}
-                    <div className="flex-1 overflow-y-auto p-4 sm:p-6">
+                    <div ref={scrollAreaRef} className="flex-1 overflow-y-auto p-4 sm:p-6">
                         <div className="max-w-4xl mx-auto space-y-6">
                         {messages.map((msg, index) => {
                             const isUser = msg.role === 'user';
@@ -606,8 +615,9 @@ ${templateQuestions}
                             const suggestions = (msg.suggestions && msg.suggestions.length > 0) ? msg.suggestions : _parsed.suggestions;
                             const suggestionType = msg.suggestionType || _parsed.suggestionType;
 
+                            const isLastAiMsg = !isUser && index === messages.length - 1;
                             return (
-                                <div key={index} className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}>
+                                <div key={index} ref={isLastAiMsg ? lastAiMsgRef : null} className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}>
                                     <div className={`max-w-[95%] lg:max-w-[85%] rounded-2xl px-5 py-4 overflow-hidden min-w-0 ${
                                         isUser 
                                             ? (isDark ? 'bg-[#2e2e32] text-gray-100 border border-gray-600' : 'bg-gray-200 text-gray-800') 
@@ -2946,6 +2956,7 @@ ${JSON.stringify(filteredX)}`;
         // 4. アプリルート
         const App = () => {
             const [currentView, setCurrentView] = React.useState('chat');
+            const [chatKey, setChatKey] = React.useState(0);
             const [apiKey, setApiKey] = React.useState('');
             const [isSettingsOpen, setIsSettingsOpen] = React.useState(false);
             const [theme, setTheme] = React.useState('dark');
@@ -2984,7 +2995,7 @@ ${JSON.stringify(filteredX)}`;
             return (
                 <div className={`flex h-screen w-full overflow-hidden ${theme === 'dark' ? 'bg-[#131314] text-gray-100' : 'bg-gray-50 text-gray-900'}`}>
                     <Sidebar 
-                        onNewChat={() => window.location.reload()}
+                        onNewChat={() => { setChatKey(k => k + 1); setCurrentView('chat'); }}
                         onOpenSettings={() => setIsSettingsOpen(true)}
                         hasKey={!!apiKey}
                         theme={theme}
@@ -3001,6 +3012,7 @@ ${JSON.stringify(filteredX)}`;
                         <ReportView theme={theme} apiKey={apiKey} />
                     ) : (
                         <ChatArea 
+                            key={chatKey}
                             apiKey={apiKey} 
                             theme={theme}
                         />
