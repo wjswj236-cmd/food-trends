@@ -2430,7 +2430,7 @@
         // 1. このファイルをブラウザで開き、左下の設定(⚙️) > 「管理者設定」タブをクリック
         // 2. あなたのAPIキーと、任意の「パスワード」を入力して「暗号化文字列」を生成する
         // 3. 生成された文字列をコピーし、下の ENCRYPTED_API_KEY の "" の中に貼り付けて保存する
-        const ENCRYPTED_API_KEY = "U2FsdGVkX1/xITd82Z0upiOzhsGnDr4ckzdVTX82hgmfBZwQ/ES2zt+2EUD4cJ9Fvr6mpk/wM78ZR0FXbHaLuw==";
+        const ENCRYPTED_API_KEY = "U2FsdGVkX1/14fDEyZe7t/c7XeR710dft1es4JcwzTi0TKqmIKA9MASYGilpwwUbX8OUdcjkpf01EY7W41gzUg==";
 
         const TV_META_DATA_INFO = `株式会社エム・データが提供する「TVメタデータ」は以下の4種類で構成されます。
 1. 番組データ（番組放送内容）
@@ -2544,7 +2544,7 @@ ${JSON.stringify(window.X_DATA)}
                             新規チャット
                         </button>
                     </div>
-                    <div className="px-3 py-2 border-b border-gray-800/50">
+                    <div className="px-3 pt-5 pb-2 border-b border-gray-800/50">
                         <p className="text-xs font-bold mb-2 px-1 text-gray-500">カスタムメニュー</p>
                         <button
                             onClick={() => onViewChange('ranking')}
@@ -4160,7 +4160,25 @@ ${templateQuestions}
 
                                 {/* バブル */}
                                 <g>
-                                    {plotData.map((d, idx) => {
+                                    {(() => {
+                                        // 上位5件のラベル重複チェック：重なる場合はスコア高い方(idxが小さい方)のみ表示
+                                        const visibleLabelSet = new Set();
+                                        for (let i = 0; i < Math.min(5, plotData.length); i++) {
+                                            const di = plotData[i];
+                                            const { x: xi, y: yi } = getXY(di);
+                                            const { svgX: sxi, svgY: syi } = toSVG(xi, yi);
+                                            const ri = bubbleR(di);
+                                            let overlapped = false;
+                                            for (const j of visibleLabelSet) {
+                                                const dj = plotData[j];
+                                                const { x: xj, y: yj } = getXY(dj);
+                                                const { svgX: sxj, svgY: syj } = toSVG(xj, yj);
+                                                const rj = bubbleR(dj);
+                                                if (Math.hypot(sxi - sxj, syi - syj) < ri + rj + 10) { overlapped = true; break; }
+                                            }
+                                            if (!overlapped) visibleLabelSet.add(i);
+                                        }
+                                        return plotData.map((d, idx) => {
                                         const { x, y } = getXY(d);
                                         const { svgX, svgY } = toSVG(x, y);
                                         const r = bubbleR(d);
@@ -4175,8 +4193,8 @@ ${templateQuestions}
                                         const alpha = selected ? (isSel || isNear ? 1 : 0.18) : (isHov ? 1 : 0.75);
                                         const label = d.theme.length > 10 ? d.theme.slice(0, 10) + '…' : d.theme;
                                         const fontSize = Math.max(9, Math.min(13.5, r * 0.72));
-                                        // 上位5件 or 選択中は常時ラベル表示、それ以外はホバー時のみ
-                                        const showAlwaysLabel = idx < 5 || isSel;
+                                        // 上位5件は重複なし確認済みのみ表示、選択中は常時表示
+                                        const showAlwaysLabel = visibleLabelSet.has(idx) || isSel;
                                         const showHoverLabel  = !showAlwaysLabel && isHov;
                                         // ホバー用ラベルのバブル外表示設定
                                         const hoverLabelY  = -(r + 6);
@@ -4226,7 +4244,7 @@ ${templateQuestions}
                                                 )}
                                             </g>
                                         );
-                                    })}
+                                    }); })()}
                                 </g>
 
                                 {/* 凡例 削除済み（バブル色統一のため不要） */}
